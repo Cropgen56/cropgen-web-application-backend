@@ -1,0 +1,16 @@
+{
+  "name": "cropgen-web-application-backend",
+  "version": "1.0.0",
+  "description": "crop gen backend",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "crop gen team",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}
