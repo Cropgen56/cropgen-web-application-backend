@@ -1,16 +1,17 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../config/db.js";
 
-// Define the User model
 const User = sequelize.define(
   "User",
   {
     firstName: {
       type: DataTypes.STRING,
+      len: [1, 50],
       allowNull: false,
     },
     lastName: {
       type: DataTypes.STRING,
+      len: [1, 50],
       allowNull: false,
     },
     email: {
@@ -48,6 +49,12 @@ const User = sequelize.define(
   },
   {
     timestamps: true,
+    indexes: [
+      {
+        unique: true,
+        fields: ["email"],
+      },
+    ],
   }
 );
 

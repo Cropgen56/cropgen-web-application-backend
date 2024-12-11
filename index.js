@@ -15,7 +15,7 @@ app.use(cors());
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/", (req, res) => {
-  res.send("Hello from cropgen server");
+  res.send("Hello from Cropgen server");
 });
 
 // Start Server and Sync Database
@@ -24,10 +24,6 @@ const startServer = async () => {
     // Test DB connection
     await sequelize.authenticate();
     console.log("Database connected successfully.");
-
-    // Sync models to database
-    await sequelize.sync({ alter: true });
-    console.log("Database synchronized successfully.");
 
     // Start the server
     const PORT = process.env.PORT || 5000;
