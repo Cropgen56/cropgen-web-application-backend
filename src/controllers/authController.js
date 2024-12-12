@@ -182,7 +182,7 @@ export const testApi = async (req, res) => {
       id: 1,
       firstName: "John",
       lastName: "Doe",
-      email: "johndoe@example.com",
+      email: "admin@example.com",
       role: "admin",
     };
 
@@ -203,4 +203,3 @@ export const testApi = async (req, res) => {
     });
   }
 };
-
