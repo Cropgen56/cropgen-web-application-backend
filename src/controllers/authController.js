@@ -115,7 +115,6 @@ export const signin = async (req, res) => {
 };
 
 // Fetch all users from the database
-
 export const getAllUsers = async (req, res) => {
   try {
     const users = await User.findAll();
@@ -142,7 +141,6 @@ export const getAllUsers = async (req, res) => {
 };
 
 // get user by id
-
 export const getUserById = async (req, res) => {
   const { id } = req.params;
 
