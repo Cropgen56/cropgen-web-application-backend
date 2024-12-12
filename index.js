@@ -15,7 +15,6 @@ app.use(cors());
 // Routes
 app.use("/api/auth", authRoutes);
 
-
 // Start Server and Sync Database
 const startServer = async () => {
   try {
