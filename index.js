@@ -14,9 +14,7 @@ app.use(cors());
 
 // Routes
 app.use("/api/auth", authRoutes);
-app.use("/", (req, res) => {
-  res.send("Hello from Cropgen server");
-});
+
 
 // Start Server and Sync Database
 const startServer = async () => {

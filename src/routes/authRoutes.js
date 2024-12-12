@@ -4,6 +4,7 @@ import {
   signin,
   getAllUsers,
   getUserById,
+  testApi
 } from "../controllers/authController.js";
 import isAuthenticated from "../middleware/authMiddleware.js";
 
@@ -14,5 +15,7 @@ router.post("/signup", signup);
 router.post("/signin", signin);
 router.get("/users", getAllUsers);
 router.get("/users/:id", getUserById);
+router.get("/test-api", testApi);
+
 
 export default router;

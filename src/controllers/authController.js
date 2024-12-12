@@ -174,3 +174,33 @@ export const getUserById = async (req, res) => {
     });
   }
 };
+
+export const testApi = async (req, res) => {
+  try {
+    // Mock user data for demonstration purposes (replace with actual logic if needed)
+    const user = {
+      id: 1,
+      firstName: "John",
+      lastName: "Doe",
+      email: "johndoe@example.com",
+      role: "admin",
+    };
+
+    // Send a success response
+    res.status(200).json({
+      success: true,
+      message: "User fetched successfully.",
+      user,
+    });
+  } catch (err) {
+    // Log the error for debugging
+    console.error("Error in testApi:", err);
+
+    // Send an error response
+    res.status(500).json({
+      success: false,
+      message: "Failed test API.",
+    });
+  }
+};
+
