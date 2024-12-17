@@ -1,61 +1,65 @@
-import { DataTypes } from "sequelize";
-import sequelize from "../config/db.js";
+import mongoose from "mongoose";
 
-const User = sequelize.define(
-  "User",
+const { Schema } = mongoose;
+
+const userSchema = new Schema(
   {
     firstName: {
-      type: DataTypes.STRING,
-      len: [1, 50],
-      allowNull: false,
+      type: String,
+      required: true,
+      minlength: 1,
+      maxlength: 50,
     },
     lastName: {
-      type: DataTypes.STRING,
-      len: [1, 50],
-      allowNull: false,
+      type: String,
+      required: true,
+      minlength: 1,
+      maxlength: 50,
     },
     email: {
-      type: DataTypes.STRING,
-      allowNull: false,
+      type: String,
+      required: true,
       unique: true,
       validate: {
-        isEmail: true,
+        validator: function (v) {
+          return /\S+@\S+\.\S+/.test(v);
+        },
+        message: (props) => `${props.value} is not a valid email!`,
       },
     },
     phone: {
-      type: DataTypes.STRING,
-      allowNull: false,
+      type: String,
+      required: true,
       validate: {
-        isNumeric: true,
-        len: [10, 15],
+        validator: function (v) {
+          return /^[0-9]{10,15}$/.test(v);
+        },
+        message: (props) => `${props.value} is not a valid phone number!`,
       },
     },
     password: {
-      type: DataTypes.STRING,
-      allowNull: false,
+      type: String,
+      required: true,
     },
     role: {
-      type: DataTypes.ENUM("farmer", "admin", "developer"),
-      defaultValue: "farmer",
+      type: String,
+      enum: ["farmer", "admin", "developer"],
+      default: "farmer",
     },
     organization: {
-      type: DataTypes.STRING,
-      allowNull: true,
+      type: String,
+      default: null,
     },
     terms: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
+      type: Boolean,
+      required: true,
     },
   },
   {
     timestamps: true,
-    indexes: [
-      {
-        unique: true,
-        fields: ["email"],
-      },
-    ],
   }
 );
+
+const User = mongoose.model("User", userSchema);
 
 export default User;

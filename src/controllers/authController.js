@@ -18,7 +18,7 @@ export const signup = async (req, res) => {
     }
 
     // Check if the email already exists
-    const existingUser = await User.findOne({ where: { email } });
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(409).json({
         success: false,
@@ -40,9 +40,8 @@ export const signup = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "User registered successfully.",
-
       user: {
-        id: newUser.id,
+        id: newUser._id,
         firstName: newUser.firstName,
         lastName: newUser.lastName,
         email: newUser.email,
@@ -71,7 +70,7 @@ export const signin = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -88,7 +87,7 @@ export const signin = async (req, res) => {
 
     const token = jwt.sign(
       {
-        id: user.id,
+        id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
@@ -117,13 +116,13 @@ export const signin = async (req, res) => {
 // Fetch all users from the database
 export const getAllUsers = async (req, res) => {
   try {
-    const users = await User.findAll();
+    const users = await User.find();
 
     res.status(200).json({
       success: true,
       message: "Users fetched successfully.",
       users: users.map((user) => ({
-        id: user.id,
+        id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
@@ -145,7 +144,7 @@ export const getUserById = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const user = await User.findByPk(id);
+    const user = await User.findById(id);
 
     if (!user) {
       return res.status(404).json({
@@ -158,7 +157,7 @@ export const getUserById = async (req, res) => {
       success: true,
       message: "User fetched successfully.",
       user: {
-        id: user.id,
+        id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
@@ -179,7 +178,7 @@ export const testApi = async (req, res) => {
   try {
     // Mock user data for demonstration purposes (replace with actual logic if needed)
     const user = {
-      id: 1,
+      id: "1",
       firstName: "John",
       lastName: "Doe",
       email: "admin@example.com",

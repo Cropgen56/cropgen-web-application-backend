@@ -1,9 +1,10 @@
 import express from "express";
 import dotenv from "dotenv";
-import sequelize from "./src/config/db.js";
-import authRoutes from "./src/routes/authRoutes.js";
 import cors from "cors";
+import { connectToDatabase } from "./src/config/db.js";
 
+import authRoutes from "./src/routes/authRoutes.js";
+import fieldRoutes from "./src/routes/fieldRoutes.js";
 dotenv.config();
 
 const app = express();
@@ -14,18 +15,14 @@ app.use(cors());
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/field", fieldRoutes);
 
 // Start Server and Sync Database
 const startServer = async () => {
   try {
-    // Test DB connection
-    await sequelize.authenticate();
-    console.log("Database connected successfully.");
-
-    // Start the server
-
+    connectToDatabase();
     const PORT = process.env.PORT || 5000;
-    app.listen(PORT,"0.0.0.0",() => {
+    app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on http://localhost:${PORT}`);
     });
   } catch (error) {
