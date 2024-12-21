@@ -2,16 +2,23 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import { connectToDatabase } from "./src/config/db.js";
-
 import authRoutes from "./src/routes/authRoutes.js";
 import fieldRoutes from "./src/routes/fieldRoutes.js";
 dotenv.config();
 
 const app = express();
 
-// Middleware
+// CORS configuration
+const corsOptions = {
+  origin: "https://app.cropgenapp.com",
+  methods: "GET,POST,PUT,DELETE",
+  allowedHeaders: "Content-Type,Authorization", 
+  credentials: true, 
+};
+
+// Use the CORS middleware with the specified options
+app.use(cors(corsOptions));
 app.use(express.json());
-app.use(cors());
 
 // Routes
 app.use("/api/auth", authRoutes);
