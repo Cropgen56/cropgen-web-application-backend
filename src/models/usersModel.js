@@ -6,13 +6,11 @@ const userSchema = new Schema(
   {
     firstName: {
       type: String,
-      required: true,
       minlength: 1,
       maxlength: 50,
     },
     lastName: {
       type: String,
-      required: true,
       minlength: 1,
       maxlength: 50,
     },
@@ -29,7 +27,6 @@ const userSchema = new Schema(
     },
     phone: {
       type: String,
-      required: true,
       validate: {
         validator: function (v) {
           return /^[0-9]{10,15}$/.test(v);
@@ -39,7 +36,6 @@ const userSchema = new Schema(
     },
     password: {
       type: String,
-      required: true,
     },
     role: {
       type: String,
