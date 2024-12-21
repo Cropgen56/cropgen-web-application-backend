@@ -1,7 +1,68 @@
 import jwt from "jsonwebtoken";
 import User from "../models/usersModel.js";
+import { getUserDataFromGoogle } from "../utils/getUserData.js";
+import { OAuth2Client } from "google-auth-library";
 
 const JWT_SECRET = process.env.JWT_SECRET;
+
+// Google login controller
+export const googleLogin = async (req, res) => {
+  const { access_token } = req.body;
+  if (!access_token) {
+    return res.status(400).json({
+      success: false,
+      message: "Access token is required.",
+    });
+  }
+
+  try {
+    const userInfo = await getUserDataFromGoogle(access_token);
+    const { email, given_name, family_name } = userInfo;
+
+    // Check if the user exists in the database
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      // If the user does not exist, create a new user
+      user = new User({
+        firstName: given_name,
+        lastName: family_name,
+        email,
+        role: "farmer",
+        terms: true,
+      });
+
+      // Save the new user to the database
+      await user.save();
+    }
+
+    // Generate a JWT token for the user
+    const token = jwt.sign(
+      {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "15d" }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "User logged in successfully.",
+      token,
+    });
+  } catch (error) {
+    console.error("Error during Google login:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error during Google login.",
+      error: error.message,
+    });
+  }
+};
 
 // Signup controller
 export const signup = async (req, res) => {
@@ -95,7 +156,7 @@ export const signin = async (req, res) => {
       },
       JWT_SECRET,
       {
-        expiresIn: "1d",
+        expiresIn: "15d",
       }
     );
 
