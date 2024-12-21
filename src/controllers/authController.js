@@ -1,7 +1,68 @@
 import jwt from "jsonwebtoken";
 import User from "../models/usersModel.js";
+import { getUserDataFromGoogle } from "../utils/getUserData.js";
+import { OAuth2Client } from "google-auth-library";
 
 const JWT_SECRET = process.env.JWT_SECRET;
+
+// Google login controller
+export const googleLogin = async (req, res) => {
+  const { access_token } = req.body;
+  if (!access_token) {
+    return res.status(400).json({
+      success: false,
+      message: "Access token is required.",
+    });
+  }
+
+  try {
+    const userInfo = await getUserDataFromGoogle(access_token);
+    const { email, given_name, family_name } = userInfo;
+
+    // Check if the user exists in the database
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      // If the user does not exist, create a new user
+      user = new User({
+        firstName: given_name,
+        lastName: family_name,
+        email,
+        role: "farmer",
+        terms: true,
+      });
+
+      // Save the new user to the database
+      await user.save();
+    }
+
+    // Generate a JWT token for the user
+    const token = jwt.sign(
+      {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "15d" }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "User logged in successfully.",
+      token,
+    });
+  } catch (error) {
+    console.error("Error during Google login:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error during Google login.",
+      error: error.message,
+    });
+  }
+};
 
 // Signup controller
 export const signup = async (req, res) => {
@@ -18,7 +79,7 @@ export const signup = async (req, res) => {
     }
 
     // Check if the email already exists
-    const existingUser = await User.findOne({ where: { email } });
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(409).json({
         success: false,
@@ -40,9 +101,8 @@ export const signup = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "User registered successfully.",
-
       user: {
-        id: newUser.id,
+        id: newUser._id,
         firstName: newUser.firstName,
         lastName: newUser.lastName,
         email: newUser.email,
@@ -71,7 +131,7 @@ export const signin = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -88,7 +148,7 @@ export const signin = async (req, res) => {
 
     const token = jwt.sign(
       {
-        id: user.id,
+        id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
@@ -96,7 +156,7 @@ export const signin = async (req, res) => {
       },
       JWT_SECRET,
       {
-        expiresIn: "1d",
+        expiresIn: "15d",
       }
     );
 
@@ -115,16 +175,15 @@ export const signin = async (req, res) => {
 };
 
 // Fetch all users from the database
-
 export const getAllUsers = async (req, res) => {
   try {
-    const users = await User.findAll();
+    const users = await User.find();
 
     res.status(200).json({
       success: true,
       message: "Users fetched successfully.",
       users: users.map((user) => ({
-        id: user.id,
+        id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
@@ -142,12 +201,11 @@ export const getAllUsers = async (req, res) => {
 };
 
 // get user by id
-
 export const getUserById = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const user = await User.findByPk(id);
+    const user = await User.findById(id);
 
     if (!user) {
       return res.status(404).json({
@@ -160,7 +218,7 @@ export const getUserById = async (req, res) => {
       success: true,
       message: "User fetched successfully.",
       user: {
-        id: user.id,
+        id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
@@ -181,10 +239,10 @@ export const testApi = async (req, res) => {
   try {
     // Mock user data for demonstration purposes (replace with actual logic if needed)
     const user = {
-      id: 1,
+      id: "1",
       firstName: "John",
       lastName: "Doe",
-      email: "johndoe@example.com",
+      email: "admin@example.com",
       role: "admin",
     };
 
@@ -205,4 +263,3 @@ export const testApi = async (req, res) => {
     });
   }
 };
-

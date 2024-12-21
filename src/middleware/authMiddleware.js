@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET_KEY || "your-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET_KEY;
 
 // Middleware function to authenticate requests
 const isAuthenticated = (req, res, next) => {
