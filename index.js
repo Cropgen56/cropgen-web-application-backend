@@ -8,16 +8,8 @@ dotenv.config();
 
 const app = express();
 
-// CORS configuration
-const corsOptions = {
-  origin: "https://app.cropgenapp.com",
-  methods: "GET,POST,PUT,DELETE",
-  allowedHeaders: "Content-Type,Authorization", 
-  credentials: true, 
-};
-
 // Use the CORS middleware with the specified options
-app.use(cors(corsOptions));
+app.use(cors());
 app.use(express.json());
 
 // Routes
@@ -38,4 +30,3 @@ const startServer = async () => {
 };
 
 startServer();
-
