@@ -4,6 +4,7 @@ import cors from "cors";
 import { connectToDatabase } from "./src/config/db.js";
 import authRoutes from "./src/routes/authRoutes.js";
 import fieldRoutes from "./src/routes/fieldRoutes.js";
+import { createToken } from "./src/utils/tokenUtility.js";
 dotenv.config();
 
 const app = express();
@@ -15,6 +16,8 @@ app.use(express.json());
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/field", fieldRoutes);
+
+createToken("vishal");
 
 // Start Server and Sync Database
 const startServer = async () => {

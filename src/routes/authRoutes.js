@@ -6,6 +6,7 @@ import {
   getUserById,
   testApi,
   googleLogin,
+  registerUser,
 } from "../controllers/authController.js";
 const router = express.Router();
 
@@ -16,5 +17,8 @@ router.post("/signin", signin);
 router.get("/users", getAllUsers);
 router.get("/users/:id", getUserById);
 router.get("/test-api", testApi);
+
+// cropidill auth routes
+router.post("/register-user", registerUser);
 
 export default router;

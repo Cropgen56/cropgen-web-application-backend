@@ -4,6 +4,10 @@ const { Schema } = mongoose;
 
 const userSchema = new Schema(
   {
+    userId: {
+      type: String,
+      unique: true,
+    },
     firstName: {
       type: String,
       minlength: 1,
@@ -16,7 +20,6 @@ const userSchema = new Schema(
     },
     email: {
       type: String,
-      required: true,
       unique: true,
       validate: {
         validator: function (v) {

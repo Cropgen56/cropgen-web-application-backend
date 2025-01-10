@@ -1,13 +1,13 @@
 import jwt from "jsonwebtoken";
 import User from "../models/usersModel.js";
 import { getUserDataFromGoogle } from "../utils/getUserData.js";
-import { OAuth2Client } from "google-auth-library";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // Google login controller
 export const googleLogin = async (req, res) => {
   const { access_token } = req.body;
+
   if (!access_token) {
     return res.status(400).json({
       success: false,
@@ -63,7 +63,6 @@ export const googleLogin = async (req, res) => {
     });
   }
 };
-
 // Signup controller
 export const signup = async (req, res) => {
   try {
@@ -261,5 +260,68 @@ export const testApi = async (req, res) => {
       success: false,
       message: "Failed test API.",
     });
+  }
+};
+
+// Cropi Dill all auth apis
+
+// Register API
+export const registerUser = async (req, res) => {
+  try {
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      role,
+      organization,
+      terms,
+      userId,
+    } = req.body;
+
+    // Validate required fields
+    if (!userId || !organization || !phone || !terms) {
+      return res
+        .status(400)
+        .json({ message: "All required fields must be filled." });
+    }
+
+    // Optimize validation with a single query
+    const existingUser = await User.findOne({
+      $or: [{ phone }, { userId }],
+    });
+
+    if (existingUser) {
+      return res.status(200).json({
+        message: `User already exists`,
+        data: existingUser,
+      });
+    }
+
+    // Create a new user
+    const newUser = new User({
+      userId,
+      firstName,
+      lastName,
+      email: email ? email : undefined,
+      phone,
+      role: role || "farmer",
+      organization,
+      terms,
+    });
+
+    // Save user to database
+    await newUser.save();
+
+    res.status(201).json({
+      success: true,
+      message: "User registered successfully!",
+      data: newUser,
+    });
+  } catch (error) {
+    console.error("Error during user registration:", error);
+    res
+      .status(500)
+      .json({ message: "Internal server error. Please try again later." });
   }
 };
