@@ -288,7 +288,7 @@ export const registerUser = async (req, res) => {
 
     // Optimize validation with a single query
     const existingUser = await User.findOne({
-      $or: [{ phone }, { userId }],
+      $or: [{ phone },{email}, { userId }],
     });
 
     if (existingUser) {
