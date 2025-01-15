@@ -32,6 +32,10 @@ const farmFieldSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    acre: {
+      type: Number,
+      required: true,
+    },
     typeOfIrrigation: {
       type: String,
       required: true,
