@@ -266,6 +266,7 @@ export const testApi = async (req, res) => {
 // Cropi Dill all auth apis
 
 // Register API
+// Cropy deals all auth apis
 export const registerUser = async (req, res) => {
   try {
     const {
@@ -292,18 +293,17 @@ export const registerUser = async (req, res) => {
     });
 
     if (existingUser) {
-      if (existingUser.userId === userId) {
+      return res.status(200).json({
+        message: "User already exists.",
+        data: existingUser,
+      });
+    }
+
+    if (email) {
+      const emailExists = await User.findOne({ email });
+      if (emailExists) {
         return res.status(409).json({
-          message: `User already exists`,
-          data: existingUser,
-        });
-      } else if (existingUser.email === email) {
-        return res.status(409).json({
-          message: `Email already exists, try another`,
-        });
-      } else if (existingUser.phone === phone) {
-        return res.status(409).json({
-          message: `Phone number already exists, try another`,
+          message: "Email already exists, please try another.",
         });
       }
     }
@@ -311,8 +311,8 @@ export const registerUser = async (req, res) => {
     // Create a new user
     const newUser = new User({
       userId,
-      firstName,
-      lastName,
+      firstName: firstName || undefined,
+      lastName: lastName || undefined,
       email: email || undefined,
       phone,
       role: role || "farmer",
@@ -329,6 +329,12 @@ export const registerUser = async (req, res) => {
       data: newUser,
     });
   } catch (error) {
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return res.status(409).json({
+        message: `${field} already exists. Please use a different ${field}.`,
+      });
+    }
     console.error("Error during user registration:", error);
     res
       .status(500)
