@@ -288,14 +288,24 @@ export const registerUser = async (req, res) => {
 
     // Optimize validation with a single query
     const existingUser = await User.findOne({
-      $or: [{ phone },{email}, { userId }],
+      $or: [{ phone }, { userId }],
     });
 
     if (existingUser) {
-      return res.status(200).json({
-        message: `User already exists`,
-        data: existingUser,
-      });
+      if (existingUser.userId === userId) {
+        return res.status(409).json({
+          message: `User already exists`,
+          data: existingUser,
+        });
+      } else if (existingUser.email === email) {
+        return res.status(409).json({
+          message: `Email already exists, try another`,
+        });
+      } else if (existingUser.phone === phone) {
+        return res.status(409).json({
+          message: `Phone number already exists, try another`,
+        });
+      }
     }
 
     // Create a new user
@@ -303,7 +313,7 @@ export const registerUser = async (req, res) => {
       userId,
       firstName,
       lastName,
-      email: email ? email : undefined,
+      email: email || undefined,
       phone,
       role: role || "farmer",
       organization,
