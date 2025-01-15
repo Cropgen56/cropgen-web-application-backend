@@ -12,6 +12,7 @@ export const addField = async (req, res) => {
       sowingDate,
       typeOfIrrigation,
       farmName,
+      acre,
     } = req.body;
     // Validate the input fields
     if (
@@ -21,7 +22,8 @@ export const addField = async (req, res) => {
       !variety ||
       !sowingDate ||
       !typeOfIrrigation ||
-      !farmName
+      !farmName ||
+      !acre
     ) {
       return res.status(400).json({ message: "All fields are required" });
     }
@@ -42,6 +44,7 @@ export const addField = async (req, res) => {
       sowingDate,
       typeOfIrrigation,
       fieldName: farmName,
+      acre: acre,
     });
 
     // Save the farm field in the database
