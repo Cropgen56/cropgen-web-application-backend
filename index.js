@@ -14,8 +14,8 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
-app.use("/api/auth", authRoutes);
-app.use("/api/field", fieldRoutes);
+app.use("/v1/api/auth", authRoutes);
+app.use("/v1/api/field", fieldRoutes);
 
 createToken("vishal");
 
