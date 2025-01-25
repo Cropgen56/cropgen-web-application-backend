@@ -123,3 +123,64 @@ export const deleteField = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+// Update a specific farm field by its ID
+export const updateField = async (req, res) => {
+  const { fieldId } = req.params;
+  const updateData = req.body;
+
+  try {
+    // Validate if fieldId is provided
+    if (!fieldId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Field ID is required." });
+    }
+
+    // Validate if update data is not empty
+    if (!updateData || Object.keys(updateData).length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Update data cannot be empty." });
+    }
+
+    // Check if the field exists
+    const fieldExists = await FarmField.findById(fieldId);
+    if (!fieldExists) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Farm field not found." });
+    }
+
+    // Perform the update
+    const updatedField = await FarmField.findByIdAndUpdate(
+      fieldId,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
+    // Respond with the updated field
+    return res.status(200).json({
+      success: true,
+      message: "Farm field updated successfully.",
+      farmField: updatedField,
+    });
+  } catch (error) {
+    console.error("Error updating farm field:", error.message);
+    // Handle specific Mongoose validation errors
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: "Validation error.",
+        error: error.message,
+      });
+    }
+
+    // Handle other server errors
+    return res.status(500).json({
+      success: false,
+      message: "Server error occurred while updating the farm field.",
+      error: error.message,
+    });
+  }
+};
