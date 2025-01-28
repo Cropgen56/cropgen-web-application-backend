@@ -66,8 +66,17 @@ export const googleLogin = async (req, res) => {
 // Signup controller
 export const signup = async (req, res) => {
   try {
-    const { firstName, lastName, email, phone, password, role, terms } =
-      req.body;
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      password,
+      role,
+      terms,
+      organization,
+      userId,
+    } = req.body;
 
     // Validate required fields
     if (!firstName || !lastName || !email || !phone || !password) {
@@ -95,6 +104,8 @@ export const signup = async (req, res) => {
       password,
       role: role || "farmer",
       terms,
+      organization,
+      userId,
     });
 
     return res.status(201).json({
@@ -172,22 +183,24 @@ export const signin = async (req, res) => {
     });
   }
 };
-
 // Fetch all users from the database
 export const getAllUsers = async (req, res) => {
   try {
     const users = await User.find();
 
+    // Check if there are users found
+    if (!users || users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No users found.",
+      });
+    }
+
+    // Return the complete user data as-is
     res.status(200).json({
       success: true,
       message: "Users fetched successfully.",
-      users: users.map((user) => ({
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
-      })),
+      users: users,
     });
   } catch (error) {
     console.error("Error fetching users:", error);
@@ -198,7 +211,6 @@ export const getAllUsers = async (req, res) => {
     });
   }
 };
-
 // get user by id
 export const getUserById = async (req, res) => {
   const { id } = req.params;
@@ -263,9 +275,6 @@ export const testApi = async (req, res) => {
   }
 };
 
-// Cropi Dill all auth apis
-
-// Register API
 // Cropy deals all auth apis
 export const registerUser = async (req, res) => {
   try {
@@ -339,5 +348,66 @@ export const registerUser = async (req, res) => {
     res
       .status(500)
       .json({ message: "Internal server error. Please try again later." });
+  }
+};
+
+// Delete a user by ID
+export const deleteUserById = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const user = await User.findByIdAndDelete(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "User deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete user",
+      error: error.message,
+    });
+  }
+};
+
+// Update a user by ID
+export const updateUserById = async (req, res) => {
+  const { id } = req.params;
+  const updateData = req.body;
+
+  try {
+    const user = await User.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "User updated successfully",
+      user,
+    });
+  } catch (error) {
+    console.error("Error updating user:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update user",
+      error: error.message,
+    });
   }
 };

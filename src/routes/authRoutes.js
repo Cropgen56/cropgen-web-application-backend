@@ -7,6 +7,8 @@ import {
   testApi,
   googleLogin,
   registerUser,
+  deleteUserById,
+  updateUserById,
 } from "../controllers/authController.js";
 const router = express.Router();
 
@@ -16,6 +18,8 @@ router.post("/signup", signup);
 router.post("/signin", signin);
 router.get("/users", getAllUsers);
 router.get("/users/:id", getUserById);
+router.delete("/delete-user/:id", deleteUserById);
+router.patch("/update-user/:id", updateUserById);
 router.get("/test-api", testApi);
 
 // cropidill auth routes
