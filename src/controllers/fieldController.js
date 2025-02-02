@@ -14,6 +14,7 @@ export const addField = async (req, res) => {
       farmName,
       acre,
     } = req.body;
+
     // Validate the input fields
     if (
       !userId ||
@@ -96,6 +97,35 @@ export const getField = async (req, res) => {
   } catch (error) {
     console.error("Error fetching farm fields:", error);
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// get all field
+export const getAllField = async (req, res) => {
+  try {
+    const farms = await FarmField.find();
+
+    // Check if there are users found
+    if (!farms || farms.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No users found.",
+      });
+    }
+
+    // Return the complete user data as-is
+    res.status(200).json({
+      success: true,
+      message: "Farms fetched successfully.",
+      farms: farms,
+    });
+  } catch (error) {
+    console.error("Error fetching Farms:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch Farms.",
+      error: error.message,
+    });
   }
 };
 

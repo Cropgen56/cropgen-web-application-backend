@@ -75,7 +75,6 @@ export const signup = async (req, res) => {
       role,
       terms,
       organization,
-      userId,
     } = req.body;
 
     // Validate required fields
@@ -105,7 +104,6 @@ export const signup = async (req, res) => {
       role: role || "farmer",
       terms,
       organization,
-      userId,
     });
 
     return res.status(201).json({
@@ -142,6 +140,7 @@ export const signin = async (req, res) => {
     }
 
     const user = await User.findOne({ email });
+
     if (!user) {
       return res.status(404).json({
         success: false,
