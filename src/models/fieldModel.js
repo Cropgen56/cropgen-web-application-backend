@@ -40,6 +40,11 @@ const farmFieldSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    typeOfFarming: {
+      type: String,
+      enum: ["Organic", "Inorganic", "Integrated"],
+      required: true,
+    },
   },
   {
     timestamps: true,

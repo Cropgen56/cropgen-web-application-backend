@@ -6,11 +6,11 @@ export const createToken = (userId) => {
     firstName: "Vishal",
     lastName: "Maske",
     phone: "1212121212",
-    email: "maheshcropgen1@gmail.com",
+    email: "vishalmaske@gmail.com",
     organization: "cropgen",
     role: "farmer",
     terms: "true",
-    userId: "Mahesh",
+    userId: "1212121212",
   };
   const token = jwt.sign(payload, "yourSecretKey");
   return token;
@@ -33,7 +33,7 @@ const userId = "12345";
 
 // Create a non-expiring token
 const token = createToken(userId, secretKey);
-// console.log("Generated Token:", token);
+console.log("Generated Token:", token);
 
 // Decode the token
 const decoded = decodeToken(token, secretKey);
