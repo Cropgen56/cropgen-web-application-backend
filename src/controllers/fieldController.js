@@ -16,7 +16,7 @@ export const addField = async (req, res) => {
       typeOfFarming,
     } = req.body;
 
-    // Validate the input fields
+    // Validate the input fields all are required
     if (
       !userId ||
       !latlng ||
