@@ -6,7 +6,6 @@ import {
   updateField,
   getAllField,
 } from "../controllers/fieldController.js";
-import isAuthenticated from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 

@@ -36,11 +36,12 @@ const userSchema = new Schema(
     },
     role: {
       type: String,
-      enum: ["farmer", "admin", "developer"],
+      enum: ["farmer", "admin", "developer", "client"],
       default: "farmer",
     },
     organization: {
       type: String,
+      enum: ["Cropgen", "Cropy Deals"],
       default: null,
     },
     terms: {

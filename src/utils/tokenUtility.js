@@ -3,14 +3,14 @@ import jwt from "jsonwebtoken";
 // Function to create a JWT token (without expiration)
 export const createToken = (userId) => {
   const payload = {
-    firstName: "Vishal",
-    lastName: "Maske",
-    phone: "1212121212",
-    email: "vishalmaske@gmail.com",
-    organization: "cropgen",
-    role: "farmer",
+    firstName: "Mahesh",
+    lastName: "Gote",
+    phone: "1111111111",
+    email: "mahesh@gmail.com",
+    organization: "CropGen",
+    role: "admin",
     terms: "true",
-    userId: "1212121212",
+    userId: "2",
   };
   const token = jwt.sign(payload, "yourSecretKey");
   return token;
@@ -33,7 +33,7 @@ const userId = "12345";
 
 // Create a non-expiring token
 const token = createToken(userId, secretKey);
-console.log("Generated Token:", token);
+// console.log("Generated Token:", token);
 
 // Decode the token
 const decoded = decodeToken(token, secretKey);

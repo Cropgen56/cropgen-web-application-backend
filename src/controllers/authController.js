@@ -103,7 +103,7 @@ export const signup = async (req, res) => {
       password,
       role: role || "farmer",
       terms,
-      organization,
+      organization: organization || "Cropgen",
     });
 
     return res.status(201).json({
@@ -162,6 +162,7 @@ export const signin = async (req, res) => {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        organization: user.organization,
       },
       JWT_SECRET,
       {
@@ -182,12 +183,30 @@ export const signin = async (req, res) => {
     });
   }
 };
+
 // Fetch all users from the database
 export const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find();
+    // Extract role and organization from the authenticated user
+    const { role, organization } = req.user;
 
-    // Check if there are users found
+    let users;
+
+    if (role === "admin" || role === "developer") {
+      // Admins & Developers: Fetch all users
+      users = await User.find();
+    } else if (role === "client") {
+      // Clients: Fetch users only from their organization
+      users = await User.find({ organization: organization });
+    } else {
+      // Other users: Restrict access
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. You do not have permission to view users.",
+      });
+    }
+
+    // Check if users exist
     if (!users || users.length === 0) {
       return res.status(404).json({
         success: false,
@@ -195,7 +214,6 @@ export const getAllUsers = async (req, res) => {
       });
     }
 
-    // Return the complete user data as-is
     res.status(200).json({
       success: true,
       message: "Users fetched successfully.",
@@ -210,6 +228,7 @@ export const getAllUsers = async (req, res) => {
     });
   }
 };
+
 // get user by id
 export const getUserById = async (req, res) => {
   const { id } = req.params;

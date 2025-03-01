@@ -1,8 +1,8 @@
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET_KEY;
+const JWT_SECRET = process.env.JWT_SECRET;
 
-// Middleware function to authenticate requests
+// Authentication middleware
 const isAuthenticated = (req, res, next) => {
   const token = req.header("Authorization")?.split(" ")[1];
 
@@ -12,18 +12,26 @@ const isAuthenticated = (req, res, next) => {
       .json({ message: "Access denied. No token provided." });
   }
 
-  // Verify the JWT token
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
       return res.status(403).json({ message: "Invalid or expired token." });
     }
 
-    // Attach the decoded user information to the request object
     req.user = user;
-
-    // Pass control to the next middleware or route handler
     next();
   });
 };
 
-export default isAuthenticated;
+// Role-based authorization middleware
+const authorizeRoles = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res
+        .status(403)
+        .json({ message: "Access denied. Unauthorized role." });
+    }
+    next();
+  };
+};
+
+export { isAuthenticated, authorizeRoles };
