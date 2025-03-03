@@ -174,6 +174,7 @@ export const signin = async (req, res) => {
       message: "User signed in successfully.",
       success: true,
       token,
+      role: user.role,
     });
   } catch (error) {
     res.status(500).json({
