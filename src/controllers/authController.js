@@ -78,7 +78,7 @@ export const signup = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!firstName || !lastName || !email || !phone || !password) {
+    if (!firstName || !email || !phone || !password) {
       return res.status(400).json({
         success: false,
         message: "All fields are required.",
@@ -203,7 +203,7 @@ export const getAllUsers = async (req, res) => {
       // Other users: Restrict access
       return res.status(403).json({
         success: false,
-        message: "Access denied. You do not have permission to view users.",
+        message: "Access denied. You do not have permission to view users !",
       });
     }
 
