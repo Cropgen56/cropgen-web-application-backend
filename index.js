@@ -4,6 +4,8 @@ import cors from "cors";
 import { connectToDatabase } from "./src/config/db.js";
 import authRoutes from "./src/routes/authRoutes.js";
 import fieldRoutes from "./src/routes/fieldRoutes.js";
+import blogRoutes from "./src/routes/blogRoutes.js";
+
 import { createToken } from "./src/utils/tokenUtility.js";
 dotenv.config();
 
@@ -16,6 +18,7 @@ app.use(express.json());
 // Routes
 app.use("/v1/api/auth", authRoutes);
 app.use("/v1/api/field", fieldRoutes);
+app.use("/v1/api/blog", blogRoutes);
 
 createToken("vishal");
 

@@ -34,4 +34,16 @@ const authorizeRoles = (...roles) => {
   };
 };
 
-export { isAuthenticated, authorizeRoles };
+// protect the api with the api key
+const checkApiKey = (req, res, next) => {
+  const apiKey = req.headers["x-api-key"];
+  const validApiKey = process.env.API_KEY;
+
+  if (!apiKey || apiKey !== validApiKey) {
+    return res.status(401).json({ error: "Unauthorized: Invalid API key" });
+  }
+
+  next();
+};
+
+export { isAuthenticated, authorizeRoles, checkApiKey };
