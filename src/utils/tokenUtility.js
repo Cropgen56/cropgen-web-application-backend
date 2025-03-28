@@ -33,7 +33,7 @@ const userId = "12345";
 
 // Create a non-expiring token
 const token = createToken(userId, secretKey);
-console.log("Generated Token:", token);
+// console.log("Generated Token:", token);
 
 // Decode the token
 const decoded = decodeToken(token, secretKey);

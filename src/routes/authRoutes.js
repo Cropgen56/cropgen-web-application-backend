@@ -9,6 +9,8 @@ import {
   registerUser,
   deleteUserById,
   updateUserById,
+  mobileSignup,
+  mobileSignin,
 } from "../controllers/authController.js";
 
 import {
@@ -17,8 +19,10 @@ import {
 } from "../middleware/authMiddleware.js";
 const router = express.Router();
 
-// Define the routes
-router.post("/google-login", googleLogin);
+// login with google routes
+router.post("/google", googleLogin);
+
+// common routes
 router.post("/signup", signup);
 router.post("/signin", signin);
 router.get(
@@ -44,5 +48,10 @@ router.get("/test-api", testApi);
 
 // cropydeals auth routes
 router.post("/register-user", registerUser);
+
+// mobile application authentication routes
+
+router.post("/mobile-signup", mobileSignup);
+router.post("/mobile-signin", mobileSignin);
 
 export default router;

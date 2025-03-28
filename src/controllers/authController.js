@@ -1,68 +1,67 @@
 import jwt from "jsonwebtoken";
 import User from "../models/usersModel.js";
 import { getUserDataFromGoogle } from "../utils/getUserData.js";
+import { OAuth2Client } from "google-auth-library";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
+const CLIENT_ID =
+  "411399230985-p5tioee7chgpij247th5v51uqpeuj382.apps.googleusercontent.com";
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
 // Google login controller
 export const googleLogin = async (req, res) => {
-  const { access_token } = req.body;
-
-  if (!access_token) {
-    return res.status(400).json({
-      success: false,
-      message: "Access token is required.",
-    });
-  }
-
   try {
-    const userInfo = await getUserDataFromGoogle(access_token);
-    const { email, given_name, family_name } = userInfo;
+    const { token } = req.body;
 
-    // Check if the user exists in the database
+    // Verify token with Google
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const { email, name, picture, sub } = payload;
+
+    // Split full name into first and last name
+    const nameParts = name.split(" ");
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(" ") || "";
+
+    // Check if the user already exists in the database
     let user = await User.findOne({ email });
 
     if (!user) {
-      // If the user does not exist, create a new user
+      // If the user does not exist, create a new one
       user = new User({
-        firstName: given_name,
-        lastName: family_name,
+        userId: sub,
+        firstName,
+        lastName,
         email,
         role: "farmer",
+        organization: "Cropgen",
         terms: true,
       });
 
-      // Save the new user to the database
       await user.save();
     }
 
-    // Generate a JWT token for the user
-    const token = jwt.sign(
-      {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
-      },
-      process.env.JWT_SECRET,
+    // Generate JWT Token for authentication
+    const accessToken = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      JWT_SECRET,
       { expiresIn: "15d" }
     );
 
-    return res.status(200).json({
-      success: true,
-      message: "User logged in successfully.",
-      token,
-    });
+    res.json({ success: true, accessToken, user });
   } catch (error) {
-    console.error("Error during Google login:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error during Google login.",
-      error: error.message,
-    });
+    res
+      .status(400)
+      .json({ success: false, message: "Invalid Google Token", error });
   }
 };
+
 // Signup controller
 export const signup = async (req, res) => {
   try {
@@ -429,4 +428,42 @@ export const updateUserById = async (req, res) => {
       error: error.message,
     });
   }
+};
+
+// mobile application authentication
+
+export const mobileSignup = async (req, res) => {
+  const { firstName, lastName, phoneNumber } = req.body;
+  const existingUser = await User.findOne({ phoneNumber });
+
+  if (existingUser) {
+    return res
+      .status(400)
+      .json({ message: "User already exists. Please login." });
+  }
+
+  const user = new User({ firstName, lastName, phoneNumber });
+  await user.save();
+
+  const token = jwt.sign({ id: user._id, phoneNumber }, "your_jwt_secret", {
+    expiresIn: "7d",
+  });
+
+  res.json({ token });
+};
+
+export const mobileSignin = async (req, res) => {
+  const { phoneNumber } = req.body;
+  const user = await User.findOne({ phoneNumber });
+
+  if (!user)
+    return res
+      .status(404)
+      .json({ message: "User not found. Please sign up first." });
+
+  const token = jwt.sign({ id: user._id, phoneNumber }, "your_jwt_secret", {
+    expiresIn: "7d",
+  });
+
+  res.json({ token });
 };
