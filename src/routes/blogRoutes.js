@@ -14,7 +14,7 @@ const router = express.Router();
 
 router.post("/create", isAuthenticated, upload.single("image"), createBlog);
 router.get("/list", checkApiKey, getAllBlogs);
-router.get("/details/:blogId", isAuthenticated, getBlogById);
+router.get("/details/:blogId", checkApiKey, getBlogById);
 router.put(
   "/update/:blogId",
   isAuthenticated,
