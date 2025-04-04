@@ -41,7 +41,7 @@ router.delete(
   deleteUserById
 );
 
-router.delete("/delete-user-by-email/:email", deleteUserByEmail);
+router.delete("/delete-user-by-email/:email", checkApiKey, deleteUserByEmail);
 
 router.patch(
   "/update-user/:id",
