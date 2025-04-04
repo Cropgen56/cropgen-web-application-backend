@@ -11,11 +11,13 @@ import {
   updateUserById,
   mobileSignup,
   mobileSignin,
+  deleteUserByEmail,
 } from "../controllers/authController.js";
 
 import {
   isAuthenticated,
   authorizeRoles,
+  checkApiKey,
 } from "../middleware/authMiddleware.js";
 const router = express.Router();
 
@@ -38,6 +40,9 @@ router.delete(
   authorizeRoles("admin", "developer", "client"),
   deleteUserById
 );
+
+router.delete("/delete-user-by-email/:email", deleteUserByEmail);
+
 router.patch(
   "/update-user/:id",
   isAuthenticated,
