@@ -150,10 +150,13 @@ export const deleteField = async (req, res) => {
     res.status(200).json({
       message: "Farm field deleted successfully",
       farmField: deletedFarmField,
+      success: true,
     });
   } catch (error) {
     console.error("Error deleting farm field:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Server error", error: error.message, success: false });
   }
 };
 
