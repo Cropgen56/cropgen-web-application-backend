@@ -162,7 +162,6 @@ export const updateField = async (req, res) => {
   const { fieldId } = req.params;
   const updateData = req.body;
 
-  console.log(updateData);
   try {
     // Validate if fieldId is provided
     if (!fieldId) {

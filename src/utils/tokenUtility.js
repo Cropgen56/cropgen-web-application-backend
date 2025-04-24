@@ -3,10 +3,10 @@ import jwt from "jsonwebtoken";
 // Function to create a JWT token (without expiration)
 export const createToken = (userId) => {
   const payload = {
-    firstName: "Samiksha",
-    lastName: "Bhende",
+    firstName: "Vishal",
+    lastName: "Maske",
     phone: "8788892339",
-    email: "samikshabhende4@gmail.com",
+    email: "vishalpatilmaske@gmail.com",
     organization: "Cropgen",
     role: "farmer",
     terms: "true",
