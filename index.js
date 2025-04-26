@@ -20,7 +20,7 @@ app.use("/v1/api/auth", authRoutes);
 app.use("/v1/api/field", fieldRoutes);
 app.use("/v1/api/blog", blogRoutes);
 
-createToken("vishal");
+// createToken("vishal");
 
 // Start Server and Sync Database
 const startServer = async () => {
