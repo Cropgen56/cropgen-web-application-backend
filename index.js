@@ -16,7 +16,7 @@ const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
       "https://admin.cropgenapp.com",
-      "https://cropgenapp.com",
+      "https://www.cropgenapp.com",
       "https://app.cropgenapp.com",
       "https://cropydeals.cropgenapp.com",
     ];
