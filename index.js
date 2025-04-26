@@ -12,7 +12,25 @@ dotenv.config();
 const app = express();
 
 // Use the CORS middleware with the specified options
-app.use(cors({ origin: "*" }));
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      "https://admin.cropgenapp.com",
+      "https://cropgenapp.com",
+      "https://app.cropgenapp.com",
+      "https://cropydeals.cropgenapp.com",
+    ];
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("CORS policy violation: Origin not allowed"));
+    }
+  },
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
+
 app.use(express.json());
 
 // Routes
