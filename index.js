@@ -19,6 +19,7 @@ const corsOptions = {
       "https://www.cropgenapp.com",
       "https://app.cropgenapp.com",
       "https://cropydeals.cropgenapp.com",
+      "http://localhost:3000"
     ];
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
