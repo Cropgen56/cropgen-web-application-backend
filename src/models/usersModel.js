@@ -40,8 +40,8 @@ const userSchema = new Schema(
       default: "farmer",
     },
     organization: {
-      type: String,
-      enum: ["Cropgen", "Cropy Deals"],
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
       default: null,
     },
     terms: {

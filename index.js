@@ -5,6 +5,7 @@ import { connectToDatabase } from "./src/config/db.js";
 import authRoutes from "./src/routes/authRoutes.js";
 import fieldRoutes from "./src/routes/fieldRoutes.js";
 import blogRoutes from "./src/routes/blogRoutes.js";
+import organizationRoutes from "./src/routes/organizationRoutes.js";
 
 import { createToken } from "./src/utils/tokenUtility.js";
 dotenv.config();
@@ -19,7 +20,7 @@ const corsOptions = {
       "https://www.cropgenapp.com",
       "https://app.cropgenapp.com",
       "https://cropydeals.cropgenapp.com",
-      "http://localhost:3000"
+      "http://localhost:3000",
     ];
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
@@ -38,6 +39,7 @@ app.use(express.json());
 app.use("/v1/api/auth", authRoutes);
 app.use("/v1/api/field", fieldRoutes);
 app.use("/v1/api/blog", blogRoutes);
+app.use("/v1/api/org", organizationRoutes);
 
 // createToken("vishal");
 

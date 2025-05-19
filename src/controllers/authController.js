@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/usersModel.js";
 import { getUserDataFromGoogle } from "../utils/getUserData.js";
 import { OAuth2Client } from "google-auth-library";
+import Organization from "../models/organizationModel.js";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -73,27 +74,45 @@ export const signup = async (req, res) => {
       password,
       role,
       terms,
-      organization,
+      organizationCode,
     } = req.body;
 
     // Validate required fields
-    if (!firstName || !email || !phone || !password) {
+    if (!firstName || !email || !phone || !password || terms !== true) {
       return res.status(400).json({
         success: false,
-        message: "All fields are required.",
+        message: "Required fields: firstName, email, phone, password, terms",
       });
     }
 
-    // Check if the email already exists
+    // Convert code to uppercase or default to 'CROPGEN'
+    const orgCode = organizationCode
+      ? organizationCode.toUpperCase()
+      : "CROPGEN";
+
+    // Find organization (case-insensitive, always uppercase)
+    const organization = await Organization.findOne({
+      organizationCode: orgCode,
+    });
+
+    if (!organization) {
+      return res.status(404).json({
+        success: false,
+        message: `Organization '${orgCode}' not found.`,
+      });
+    }
+
+    // Check for existing user
     const existingUser = await User.findOne({ email });
+
     if (existingUser) {
       return res.status(409).json({
         success: false,
-        message: "Email already exists!",
+        message: "Email already exists.",
       });
     }
 
-    // Create new user
+    // Create user
     const newUser = await User.create({
       firstName,
       lastName,
@@ -102,7 +121,7 @@ export const signup = async (req, res) => {
       password,
       role: role || "farmer",
       terms,
-      organization: organization || "Cropgen",
+      organization: organization._id,
     });
 
     return res.status(201).json({
@@ -114,10 +133,11 @@ export const signup = async (req, res) => {
         lastName: newUser.lastName,
         email: newUser.email,
         role: newUser.role,
+        organizationCode: orgCode,
       },
     });
   } catch (error) {
-    console.error(error);
+    console.error("Signup Error:", error);
     return res.status(500).json({
       success: false,
       message: "Internal server error.",
