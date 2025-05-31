@@ -251,7 +251,7 @@ export const getAllUsers = async (req, res) => {
 
 // get user by id
 export const getUserById = async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.user;
 
   try {
     const user = await User.findById(id);
@@ -271,6 +271,7 @@ export const getUserById = async (req, res) => {
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
+        phone: user.phone,
         role: user.role,
       },
     });

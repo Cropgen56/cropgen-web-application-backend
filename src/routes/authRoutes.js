@@ -33,29 +33,25 @@ router.get(
   authorizeRoles("admin", "developer", "client"),
   getAllUsers
 );
-router.get("/users/:id", getUserById);
+router.get("/user", isAuthenticated, getUserById);
 router.delete(
   "/delete-user/:id",
   isAuthenticated,
   authorizeRoles("admin", "developer", "client"),
   deleteUserById
 );
-
 router.delete("/delete-user-by-email/:email", checkApiKey, deleteUserByEmail);
-
 router.patch(
   "/update-user/:id",
   isAuthenticated,
-  authorizeRoles("admin", "developer", "client"),
+  // authorizeRoles("admin", "developer", "client"),
   updateUserById
 );
 router.get("/test-api", testApi);
-
 // cropydeals auth routes
 router.post("/register-user", registerUser);
 
 // mobile application authentication routes
-
 router.post("/mobile-signup", mobileSignup);
 router.post("/mobile-signin", mobileSignin);
 
