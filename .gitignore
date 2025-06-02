@@ -1,4 +1,5 @@
 # Node.js dependencies
+tests/
 node_modules/
 
 # Logs

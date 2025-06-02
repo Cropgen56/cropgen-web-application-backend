@@ -6,6 +6,7 @@ import authRoutes from "./src/routes/authRoutes.js";
 import fieldRoutes from "./src/routes/fieldRoutes.js";
 import blogRoutes from "./src/routes/blogRoutes.js";
 import organizationRoutes from "./src/routes/organizationRoutes.js";
+import operationRoutes from "./src/routes/operationRoutes.js";
 
 import { createToken } from "./src/utils/tokenUtility.js";
 dotenv.config();
@@ -40,6 +41,7 @@ app.use("/v1/api/auth", authRoutes);
 app.use("/v1/api/field", fieldRoutes);
 app.use("/v1/api/blog", blogRoutes);
 app.use("/v1/api/org", organizationRoutes);
+app.use("/v1/api/operation", operationRoutes);
 
 // createToken("vishal");
 
