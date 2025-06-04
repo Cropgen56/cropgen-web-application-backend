@@ -254,7 +254,7 @@ export const getUserById = async (req, res) => {
   const { id } = req.user;
 
   try {
-    const user = await User.findById(id);
+    const user = await User.findById(id).populate("organization");
 
     if (!user) {
       return res.status(404).json({
@@ -266,14 +266,7 @@ export const getUserById = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "User fetched successfully.",
-      user: {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-      },
+      user,
     });
   } catch (error) {
     console.error(`Error fetching user with ID ${id}:`, error);
