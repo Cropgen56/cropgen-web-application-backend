@@ -7,6 +7,7 @@ import fieldRoutes from "./src/routes/fieldRoutes.js";
 import blogRoutes from "./src/routes/blogRoutes.js";
 import organizationRoutes from "./src/routes/organizationRoutes.js";
 import operationRoutes from "./src/routes/operationRoutes.js";
+import cropRoutes from "./src/routes/cropRoutes.js";
 
 import { createToken } from "./src/utils/tokenUtility.js";
 dotenv.config();
@@ -43,10 +44,11 @@ app.use("/v1/api/field", fieldRoutes);
 app.use("/v1/api/blog", blogRoutes);
 app.use("/v1/api/org", organizationRoutes);
 app.use("/v1/api/operation", operationRoutes);
+app.use("/v1/api/crop", cropRoutes);
 
 // createToken("vishal");
 
-// Start Server and Sync Database
+// Start Server and Sync Database`
 const startServer = async () => {
   try {
     connectToDatabase();

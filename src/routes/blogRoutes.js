@@ -12,13 +12,13 @@ import upload from "../middleware/uploadImage.js";
 
 const router = express.Router();
 
-router.post("/create", isAuthenticated, upload.single("image"), createBlog);
+router.post("/create", isAuthenticated, createBlog);
 router.get("/list", checkApiKey, getAllBlogs);
 router.get("/details/:blogId", checkApiKey, getBlogById);
 router.put(
   "/update/:blogId",
   isAuthenticated,
-  upload.single("image"),
+  // upload.single("image"),
   updateBlog
 );
 router.delete("/delete/:blogId", isAuthenticated, deleteBlog);
