@@ -4,14 +4,15 @@ import {
   signin,
   getAllUsers,
   getUserById,
-  testApi,
   googleLogin,
   registerUser,
   deleteUserById,
   updateUserById,
-  mobileSignup,
-  mobileSignin,
   deleteUserByEmail,
+  signupRequest,
+  loginRequest,
+  verifyLoginOTP,
+  verifySignupOTP,
 } from "../controllers/authController.js";
 
 import {
@@ -47,12 +48,13 @@ router.patch(
   authorizeRoles("admin", "developer", "client"),
   updateUserById
 );
-router.get("/test-api", testApi);
 // cropydeals auth routes
 router.post("/register-user", registerUser);
 
 // mobile application authentication routes
-router.post("/mobile-signup", mobileSignup);
-router.post("/mobile-signin", mobileSignin);
+router.post("/signup/request", signupRequest);
+router.post("/login/request", loginRequest);
+router.post("/signup/verify", verifySignupOTP);
+router.post("/login/verify", verifyLoginOTP);
 
 export default router;
