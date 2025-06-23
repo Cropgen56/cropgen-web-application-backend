@@ -759,7 +759,6 @@ export const verifyLoginOTP = async (req, res) => {
   try {
     const { userId, otp } = req.body;
 
-    console.log(userId, otp);
     // Validate input
     if (!userId || !otp) {
       return res.status(400).json({
