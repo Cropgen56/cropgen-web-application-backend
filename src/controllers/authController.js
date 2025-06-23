@@ -519,26 +519,33 @@ export const signupRequest = async (req, res) => {
 
     // 2. Validate required fields
     if (!email || !firstName || !lastName || !phone || terms === undefined) {
-      return res.status(400).json({ message: "All fields are required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "All fields are required" });
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return res.status(400).json({ message: "Invalid email format" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid email format" });
     }
 
     // Validate phone format (matches schema: 10-15 digits)
     const phoneRegex = /^[0-9]{10,15}$/;
     if (!phoneRegex.test(phone)) {
-      return res.status(400).json({ message: "Invalid phone number" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid phone number" });
     }
 
     // 3. Validate terms
     if (!terms) {
-      return res
-        .status(400)
-        .json({ message: "You must accept the terms and conditions" });
+      return res.status(400).json({
+        success: false,
+        message: "You must accept the terms and conditions",
+      });
     }
 
     // 4. Convert code to uppercase or default to 'CROPGEN'
@@ -560,19 +567,22 @@ export const signupRequest = async (req, res) => {
     // 6. Check if email already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      // if (existingUser) {
-      //   // Fully registered user (no OTP)
-      //   return res.status(400).json({ message: "User already exists" });
-      // }
-      // if (existingUser.otpExpires > new Date()) {
-      //   // Active OTP
-      //   return res.status(400).json({
-      //     message: "Please verify the existing OTP or wait for it to expire",
-      //   });
-      // }
-      // // Expired OTP: delete temporary user
-      // await User.deleteOne({ _id: existingUser._id });
-      return res.status(400).json({ message: "User already exists" });
+      if (!existingUser.otp) {
+        // Fully registered user
+        return res.status(400).json({
+          success: false,
+          message: "User already exists",
+        });
+      }
+      if (existingUser.otpExpires > new Date()) {
+        // Active OTP
+        return res.status(400).json({
+          success: false,
+          message: "Please verify the existing OTP or wait for it to expire",
+        });
+      }
+
+      await User.deleteOne({ _id: existingUser._id });
     }
 
     // 7. Generate OTP and create temporary user
@@ -592,20 +602,7 @@ export const signupRequest = async (req, res) => {
 
     await tempUser.save();
 
-    // 8. Schedule deletion of temporary user if OTP is not verified
-    setTimeout(async () => {
-      try {
-        const user = await User.findById(tempUser._id);
-        if (user?.otp && user.otpExpires < new Date()) {
-          await User.deleteOne({ _id: tempUser._id });
-          console.log(`Deleted unverified user: ${tempUser.email}`);
-        }
-      } catch (error) {
-        console.error("Error during cleanup of unverified user:", error);
-      }
-    }, 5 * 60 * 1000);
-
-    // 9. Send OTP email
+    // 8. Send OTP email
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
@@ -615,17 +612,21 @@ export const signupRequest = async (req, res) => {
 
     await transporter.sendMail(mailOptions);
 
-    // 10. Respond with success
+    // 9. Respond with success
     res.status(200).json({
+      success: true,
       message: "OTP sent to email",
       userId: tempUser._id,
+      email: tempUser.email,
     });
   } catch (error) {
     console.error("Signup request error:", {
       message: error.message,
       stack: error.stack,
     });
-    res.status(500).json({ message: "Server error during signup request" });
+    res
+      .status(500)
+      .json({ success: false, message: "Server error during signup request" });
   }
 };
 
@@ -758,6 +759,7 @@ export const verifyLoginOTP = async (req, res) => {
   try {
     const { userId, otp } = req.body;
 
+    console.log(userId, otp);
     // Validate input
     if (!userId || !otp) {
       return res.status(400).json({

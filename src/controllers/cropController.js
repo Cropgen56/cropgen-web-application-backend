@@ -1,7 +1,8 @@
 import Crop from "../models/cropModel.js";
 import cloudinary from "../config/cloudinaryConfig.js";
+import multer from "multer";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
 
-// create a new crop
 export const createCrop = async (req, res) => {
   try {
     const {
@@ -23,18 +24,31 @@ export const createCrop = async (req, res) => {
       postHarvesting,
     } = req.body;
 
-    // Parse JSON fields if sent as strings (common in multipart/form-data)
-    const parseIfString = (data) =>
-      typeof data === "string" ? JSON.parse(data) : data;
+    // Parse JSON fields if sent as strings
+    const parseIfString = (data, fieldName) => {
+      try {
+        return typeof data === "string" ? JSON.parse(data) : data;
+      } catch (err) {
+        throw new SyntaxError(
+          `Invalid JSON format in ${fieldName}: ${err.message}`
+        );
+      }
+    };
 
-    const parsedClimate = parseIfString(climate);
-    const parsedVariety = parseIfString(variety);
-    const parsedNursery = parseIfString(nursery);
-    const parsedSowing = parseIfString(sowing);
-    const parsedFertilizer = parseIfString(fertilizer);
-    const parsedSeed = parseIfString(seed);
-    const parsedPestProtection = parseIfString(pestProtection);
-    const parsedDiseaseProtection = parseIfString(diseaseProtection);
+    const parsedClimate = parseIfString(climate, "climate");
+    const parsedVariety = parseIfString(variety, "variety");
+    const parsedNursery = parseIfString(nursery, "nursery");
+    const parsedSowing = parseIfString(sowing, "sowing");
+    const parsedFertilizer = parseIfString(fertilizer, "fertilizer");
+    const parsedSeed = parseIfString(seed, "seed");
+    const parsedPestProtection = parseIfString(
+      pestProtection,
+      "pestProtection"
+    );
+    const parsedDiseaseProtection = parseIfString(
+      diseaseProtection,
+      "diseaseProtection"
+    );
 
     // Basic validation for required top-level fields
     const requiredFields = {
@@ -68,7 +82,6 @@ export const createCrop = async (req, res) => {
 
     // Validate nested required fields
     const nestedMissingFields = [];
-
     if (!parsedClimate.temperature)
       nestedMissingFields.push("climate.temperature");
     if (!parsedClimate.sowingTemperature)
@@ -112,9 +125,10 @@ export const createCrop = async (req, res) => {
     if (!parsedSeed.seedTreatment?.method)
       nestedMissingFields.push("seed.seedTreatment.method");
 
-    // Validate pestProtection structure (array of objects, excluding image field)
+    // Validate pestProtection structure
     if (
       !Array.isArray(parsedPestProtection) ||
+      !parsedPestProtection.length ||
       !parsedPestProtection.every(
         (pp) =>
           pp.pest &&
@@ -123,19 +137,24 @@ export const createCrop = async (req, res) => {
           pp.controlMethods.organic &&
           pp.controlMethods.inorganic &&
           Array.isArray(pp.controlMethods.organic.preventive) &&
+          pp.controlMethods.organic.preventive.length > 0 &&
           Array.isArray(pp.controlMethods.organic.curative) &&
+          pp.controlMethods.organic.curative.length > 0 &&
           Array.isArray(pp.controlMethods.inorganic.preventive) &&
-          Array.isArray(pp.controlMethods.inorganic.curative)
+          pp.controlMethods.inorganic.preventive.length > 0 &&
+          Array.isArray(pp.controlMethods.inorganic.curative) &&
+          pp.controlMethods.inorganic.curative.length > 0
       )
     ) {
       nestedMissingFields.push(
-        "pestProtection (must be an array with pest, symptoms, and valid controlMethods)"
+        "pestProtection (must be a non-empty array with pest, symptoms, and non-empty controlMethods arrays)"
       );
     }
 
-    // Validate diseaseProtection structure (excluding image field)
+    // Validate diseaseProtection structure
     if (
       !Array.isArray(parsedDiseaseProtection) ||
+      !parsedDiseaseProtection.length ||
       !parsedDiseaseProtection.every(
         (dp) =>
           dp.disease &&
@@ -144,13 +163,17 @@ export const createCrop = async (req, res) => {
           dp.controlMethods.organic &&
           dp.controlMethods.inorganic &&
           Array.isArray(dp.controlMethods.organic.preventive) &&
+          dp.controlMethods.organic.preventive.length > 0 &&
           Array.isArray(dp.controlMethods.organic.curative) &&
+          dp.controlMethods.organic.curative.length > 0 &&
           Array.isArray(dp.controlMethods.inorganic.preventive) &&
-          Array.isArray(dp.controlMethods.inorganic.curative)
+          dp.controlMethods.inorganic.preventive.length > 0 &&
+          Array.isArray(dp.controlMethods.inorganic.curative) &&
+          dp.controlMethods.inorganic.curative.length > 0
       )
     ) {
       nestedMissingFields.push(
-        "diseaseProtection (must include disease, symptoms, and valid controlMethods)"
+        "diseaseProtection (must be a non-empty array with disease, symptoms, and non-empty controlMethods arrays)"
       );
     }
 
@@ -166,9 +189,9 @@ export const createCrop = async (req, res) => {
     // Validate image uploads
     if (
       !req.files ||
+      !req.files.cropImage ||
       !req.files.pestImages ||
-      !req.files.diseaseImages ||
-      !req.files.cropImage
+      !req.files.diseaseImages
     ) {
       return res.status(400).json({
         success: false,
@@ -178,39 +201,65 @@ export const createCrop = async (req, res) => {
     }
 
     // Process crop image
-    const cropImage = req.files.cropImage[0].path; // Single crop image
+    const cropImage = req.files.cropImage[0]?.path;
+    if (!cropImage) {
+      return res.status(400).json({
+        success: false,
+        message: "Crop image is required",
+      });
+    }
 
-    // Process pest image URLs from Cloudinary
+    // Process pest images
     const pestImages = Array.isArray(req.files.pestImages)
       ? req.files.pestImages
-      : [req.files.pestImages];
-    const pestProtectionWithImages = parsedPestProtection.map((pest, index) => {
-      if (index >= pestImages.length) {
-        throw new Error("Insufficient pest images provided");
-      }
-      return { ...pest, image: [pestImages[index].path] };
-    });
+      : [req.files.pestImages].filter(Boolean);
 
-    if (pestImages.length !== parsedPestProtection.length) {
-      throw new Error("Mismatch in number of pest images provided");
+    if (!pestImages.length || pestImages.length > 5) {
+      return res.status(400).json({
+        success: false,
+        message: `At least one and up to five pest images are required, got ${pestImages.length}`,
+      });
     }
 
-    // Process disease images and assign to each disease entry
-    const diseaseImages = Array.isArray(req.files.diseaseImages)
-      ? req.files.diseaseImages
-      : [req.files.diseaseImages];
-    const diseaseProtectionWithImages = parsedDiseaseProtection.map(
-      (disease, index) => {
-        if (index >= diseaseImages.length) {
-          throw new Error("Insufficient disease images provided");
-        }
-        return { ...disease, image: [diseaseImages[index].path] };
-      }
+    // if (pestImages.length !== parsedPestProtection.length) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: `Mismatch in number of pest images: expected ${parsedPestProtection.length} pestProtection entries to match ${pestImages.length} pest images. Each pest entry must have one corresponding image.`,
+    //   });
+    // }
+
+    const pestProtectionWithImages = parsedPestProtection.map(
+      (pest, index) => ({
+        ...pest,
+        image: pestImages.map((item) => item.path),
+      })
     );
 
-    if (diseaseImages.length !== parsedDiseaseProtection.length) {
-      throw new Error("Mismatch in number of disease images provided");
+    // Process disease images
+    const diseaseImages = Array.isArray(req.files.diseaseImages)
+      ? req.files.diseaseImages
+      : [req.files.diseaseImages].filter(Boolean);
+
+    if (!diseaseImages.length || diseaseImages.length > 5) {
+      return res.status(400).json({
+        success: false,
+        message: `At least one and up to five disease images are required, got ${diseaseImages.length}`,
+      });
     }
+
+    // if (diseaseImages.length !== parsedDiseaseProtection.length) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: `Mismatch in number of disease images: expected ${parsedDiseaseProtection.length} diseaseProtection entries to match ${diseaseImages.length} disease images. Each disease entry must have one corresponding image.`,
+    //   });
+    // }
+
+    const diseaseProtectionWithImages = parsedDiseaseProtection.map(
+      (disease, index) => ({
+        ...disease,
+        image: diseaseImages.map((item) => item.path),
+      })
+    );
 
     // Check for duplicate crop name (case-insensitive)
     const existingCrop = await Crop.findOne({
@@ -267,15 +316,22 @@ export const createCrop = async (req, res) => {
         ...(Array.isArray(req.files.diseaseImages)
           ? req.files.diseaseImages
           : [req.files.diseaseImages] || []),
-      ].filter(Boolean);
+      ].filter((image) => image && image.filename);
       for (const image of images) {
-        await cloudinary.uploader.destroy(image.public_id).catch((err) => {
+        await cloudinary.uploader.destroy(image.filename).catch((err) => {
           console.error("Failed to delete image from Cloudinary:", err);
         });
       }
     }
 
     // Handle specific errors
+    if (error instanceof multer.MulterError) {
+      return res.status(400).json({
+        success: false,
+        message: `Multer error: ${error.message}`,
+      });
+    }
+
     if (error.name === "ValidationError") {
       const errors = Object.values(error.errors).map((err) => err.message);
       return res.status(400).json({
@@ -291,7 +347,7 @@ export const createCrop = async (req, res) => {
       });
     }
 
-    if (error.message.includes("Crop with this variety already exists")) {
+    if (error.message.includes("A variety of this crop already exists")) {
       return res.status(409).json({
         success: false,
         message: error.message,
@@ -311,7 +367,7 @@ export const createCrop = async (req, res) => {
     if (error instanceof SyntaxError && error.message.includes("JSON")) {
       return res.status(400).json({
         success: false,
-        message: "Invalid JSON format in request body",
+        message: error.message,
       });
     }
 
