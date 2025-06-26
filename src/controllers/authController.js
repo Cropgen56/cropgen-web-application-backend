@@ -25,6 +25,7 @@ export const googleLogin = async (req, res) => {
     });
 
     const payload = ticket.getPayload();
+
     const { email, name, picture, sub } = payload;
 
     // Split full name into first and last name
@@ -35,6 +36,21 @@ export const googleLogin = async (req, res) => {
     // Check if the user already exists in the database
     let user = await User.findOne({ email });
 
+    // Convert code to uppercase or default to 'CROPGEN'
+    const orgCode = "CROPGEN";
+
+    // Find organization (case-insensitive, always uppercase)
+    const organization = await Organization.findOne({
+      organizationCode: orgCode,
+    });
+
+    if (!organization) {
+      return res.status(404).json({
+        success: false,
+        message: `Organization '${orgCode}' not found.`,
+      });
+    }
+
     if (!user) {
       // If the user does not exist, create a new one
       user = new User({
@@ -43,8 +59,8 @@ export const googleLogin = async (req, res) => {
         lastName,
         email,
         role: "farmer",
-        organization: "Cropgen",
         terms: true,
+        organization: organization._id,
       });
 
       await user.save();
