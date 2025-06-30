@@ -38,39 +38,49 @@ const fileFilter = (req, file, cb) => {
   cb(new Error("Only JPEG and PNG images are allowed"));
 };
 
-// Initialize multer for crops
+// Initialize multer for crops with flexible field handling
 const cropUpload = multer({
   storage: cropStorage,
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter,
 });
 
-// Initialize multer for blogs
-const blogUpload = multer({
-  storage: blogStorage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter,
-});
-
-// Middleware for crop image uploads (1 cropImage, up to 5 pestImages, 5 diseaseImages)
+// Middleware for crop image uploads (handles cropImageFile, pestImages, diseaseImages)
 export const uploadCropImages = (req, res, next) => {
-  cropUpload.fields([
-    { name: "cropImage", maxCount: 1 },
-    { name: "pestImages", maxCount: 5 },
-    { name: "diseaseImages", maxCount: 5 },
-  ])(req, res, (err) => {
+  cropUpload.any()(req, res, (err) => {
     if (err) {
-      console.error("Multer error:", err); // Log the Multer error
+      console.error("Multer error:", err);
       return res.status(400).json({
         success: false,
         message: err.message || "Error uploading images",
       });
+    }
+
+    // Map and group files based on client-side field names
+    if (req.files) {
+      const groupedFiles = {
+        cropImage: req.files
+          .filter((file) => file.fieldname === "cropImage")
+          .slice(0, 1), // Map cropImageFile to cropImage
+        pestImages: req.files.filter((file) =>
+          file.fieldname.startsWith("pestImages")
+        ),
+        diseaseImages: req.files.filter((file) =>
+          file.fieldname.startsWith("diseaseImages")
+        ),
+      };
+
+      // Limit the number of files
+      groupedFiles.pestImages = groupedFiles.pestImages.slice(0, 5);
+      groupedFiles.diseaseImages = groupedFiles.diseaseImages.slice(0, 5);
+
+      req.files = groupedFiles; // Replace req.files with the mapped structure
     }
     next();
   });
 };
 
 // Middleware for blog image upload (1 blogImage)
-export const uploadBlogImages = blogUpload.single("blogImage");
+export const uploadBlogImages = cropUpload.single("blogImage");
 
 export default { uploadCropImages, uploadBlogImages };

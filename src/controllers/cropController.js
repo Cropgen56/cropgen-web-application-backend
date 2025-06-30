@@ -386,7 +386,7 @@ export const getAllCrops = async (req, res) => {
   try {
     // Query parameters for pagination and sorting
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * limit;
     const sort = req.query.sort || "-createdAt";
 
@@ -397,7 +397,6 @@ export const getAllCrops = async (req, res) => {
 
     // Fetch crops with pagination, sorting, and search
     const crops = await Crop.find(search)
-      .select("cropName generalInfo climate soil varietyCount")
       .sort(sort)
       .skip(skip)
       .limit(limit)
