@@ -30,7 +30,7 @@ const fileFilter = (req, file, cb) => {
 // Initialize multer for crops
 const cropUpload = multer({
   storage: cropStorage,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB limit
   fileFilter,
 });
 
@@ -56,7 +56,6 @@ export const uploadCropImages = (req, res, next) => {
       });
     }
 
-    // Group files without modifying field names
     if (req.files) {
       const groupedFiles = {
         cropImage: req.files
@@ -68,8 +67,13 @@ export const uploadCropImages = (req, res, next) => {
         diseaseImages: req.files.filter((file) =>
           file.fieldname.startsWith("diseaseImages")
         ),
+        newPestImages: req.files.filter((file) =>
+          file.fieldname.startsWith("newPestImages")
+        ),
+        newDiseaseImages: req.files.filter((file) =>
+          file.fieldname.startsWith("newDiseaseImages")
+        ),
       };
-
       req.files = groupedFiles;
     }
     next();

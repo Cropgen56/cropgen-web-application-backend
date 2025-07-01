@@ -5,6 +5,7 @@ import {
   getAllCrops,
   getCropById,
   getCropNamesAndImages,
+  updateCrop,
 } from "../controllers/cropController.js";
 import { isAuthenticated } from "../middleware/authMiddleware.js";
 import { uploadCropImages } from "../middleware/uploadImage.js";
@@ -15,5 +16,6 @@ router.get("/get-all", getAllCrops);
 router.get("/get-crop-list", isAuthenticated, getCropNamesAndImages);
 router.get("/get/:id", getCropById);
 router.delete("/delete/:id", deleteCropById);
+router.patch("/update/:id", uploadCropImages, updateCrop);
 
 export default router;
