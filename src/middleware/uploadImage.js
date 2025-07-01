@@ -6,25 +6,14 @@ import path from "path";
 // Configure Cloudinary storage for crops
 const cropStorage = new CloudinaryStorage({
   cloudinary,
-  params: {
+  params: async (req, file) => ({
     folder: "farm_images",
     allowed_formats: ["jpg", "png", "jpeg"],
+    public_id: `crop_${Date.now()}_${file.originalname}`,
     transformation: [
       { width: 800, height: 800, crop: "limit", quality: "auto" },
     ],
-  },
-});
-
-// Configure Cloudinary storage for blogs
-const blogStorage = new CloudinaryStorage({
-  cloudinary,
-  params: {
-    folder: "blog_images",
-    allowed_formats: ["jpg", "png", "jpeg"],
-    transformation: [
-      { width: 800, height: 800, crop: "limit", quality: "auto" },
-    ],
-  },
+  }),
 });
 
 // File filter for image validation
@@ -38,30 +27,41 @@ const fileFilter = (req, file, cb) => {
   cb(new Error("Only JPEG and PNG images are allowed"));
 };
 
-// Initialize multer for crops with flexible field handling
+// Initialize multer for crops
 const cropUpload = multer({
   storage: cropStorage,
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter,
 });
 
-// Middleware for crop image uploads (handles cropImageFile, pestImages, diseaseImages)
+// Middleware for crop image uploads
 export const uploadCropImages = (req, res, next) => {
   cropUpload.any()(req, res, (err) => {
-    if (err) {
-      console.error("Multer error:", err);
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({
+          success: false,
+          message: `File too large. Maximum size is 5 MB.`,
+        });
+      }
       return res.status(400).json({
         success: false,
         message: err.message || "Error uploading images",
       });
+    } else if (err) {
+      console.error("Upload error:", err);
+      return res.status(400).json({
+        success: false,
+        message: "Error uploading images to Cloudinary",
+      });
     }
 
-    // Map and group files based on client-side field names
+    // Group files without modifying field names
     if (req.files) {
       const groupedFiles = {
         cropImage: req.files
           .filter((file) => file.fieldname === "cropImage")
-          .slice(0, 1), // Map cropImageFile to cropImage
+          .slice(0, 1),
         pestImages: req.files.filter((file) =>
           file.fieldname.startsWith("pestImages")
         ),
@@ -70,17 +70,13 @@ export const uploadCropImages = (req, res, next) => {
         ),
       };
 
-      // Limit the number of files
-      groupedFiles.pestImages = groupedFiles.pestImages.slice(0, 5);
-      groupedFiles.diseaseImages = groupedFiles.diseaseImages.slice(0, 5);
-
-      req.files = groupedFiles; // Replace req.files with the mapped structure
+      req.files = groupedFiles;
     }
     next();
   });
 };
 
-// Middleware for blog image upload (1 blogImage)
+// Middleware for blog image upload (unchanged)
 export const uploadBlogImages = cropUpload.single("blogImage");
 
 export default { uploadCropImages, uploadBlogImages };

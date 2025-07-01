@@ -209,59 +209,109 @@ export const createCrop = async (req, res) => {
       });
     }
 
-    // Process pest images
-    const pestImages = Array.isArray(req.files.pestImages)
-      ? req.files.pestImages
-      : [req.files.pestImages].filter(Boolean);
+    // Group pest images by pest index
+    const pestImagesGrouped = {};
+    req.files.pestImages.forEach((file) => {
+      const match = file.fieldname.match(/pestImages\[(\d+)\]\[\d+\]/);
+      if (match) {
+        const pestIndex = parseInt(match[1], 10);
+        if (!pestImagesGrouped[pestIndex]) {
+          pestImagesGrouped[pestIndex] = [];
+        }
+        pestImagesGrouped[pestIndex].push(file.path);
+      }
+    });
 
-    if (!pestImages.length || pestImages.length > 5) {
+    // Group disease images by disease index
+    const diseaseImagesGrouped = {};
+    req.files.diseaseImages.forEach((file) => {
+      const match = file.fieldname.match(/diseaseImages\[(\d+)\]\[\d+\]/);
+      if (match) {
+        const diseaseIndex = parseInt(match[1], 10);
+        if (!diseaseImagesGrouped[diseaseIndex]) {
+          diseaseImagesGrouped[diseaseIndex] = [];
+        }
+        diseaseImagesGrouped[diseaseIndex].push(file.path);
+      }
+    });
+
+    // Validate pest images
+    for (let i = 0; i < parsedPestProtection.length; i++) {
+      const images = pestImagesGrouped[i] || [];
+      if (images.length < 1) {
+        return res.status(400).json({
+          success: false,
+          message: `Missing image for pest at index ${i}`,
+        });
+      }
+      if (images.length > 5) {
+        return res.status(400).json({
+          success: false,
+          message: `Too many images for pest at index ${i}: maximum 5 allowed`,
+        });
+      }
+    }
+
+    // Validate disease images
+    for (let i = 0; i < parsedDiseaseProtection.length; i++) {
+      const images = diseaseImagesGrouped[i] || [];
+      if (images.length < 1) {
+        return res.status(400).json({
+          success: false,
+          message: `Missing image for disease at index ${i}`,
+        });
+      }
+      if (images.length > 5) {
+        return res.status(400).json({
+          success: false,
+          message: `Too many images for disease at index ${i}: maximum 5 allowed`,
+        });
+      }
+    }
+
+    // Check for invalid indices
+    const pestIndices = Object.keys(pestImagesGrouped).map(Number);
+    const invalidPestIndices = pestIndices.filter(
+      (index) => index >= parsedPestProtection.length || index < 0
+    );
+    if (invalidPestIndices.length > 0) {
       return res.status(400).json({
         success: false,
-        message: `At least one and up to five pest images are required, got ${pestImages.length}`,
+        message: `Invalid pest indices in images: ${invalidPestIndices.join(
+          ", "
+        )}`,
       });
     }
 
-    // if (pestImages.length !== parsedPestProtection.length) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: `Mismatch in number of pest images: expected ${parsedPestProtection.length} pestProtection entries to match ${pestImages.length} pest images. Each pest entry must have one corresponding image.`,
-    //   });
-    // }
+    const diseaseIndices = Object.keys(diseaseImagesGrouped).map(Number);
+    const invalidDiseaseIndices = diseaseIndices.filter(
+      (index) => index >= parsedDiseaseProtection.length || index < 0
+    );
+    if (invalidDiseaseIndices.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid disease indices in images: ${invalidDiseaseIndices.join(
+          ", "
+        )}`,
+      });
+    }
 
+    // Assign grouped images to pest and disease entries
     const pestProtectionWithImages = parsedPestProtection.map(
       (pest, index) => ({
         ...pest,
-        image: pestImages.map((item) => item.path),
+        image: pestImagesGrouped[index],
       })
     );
-
-    // Process disease images
-    const diseaseImages = Array.isArray(req.files.diseaseImages)
-      ? req.files.diseaseImages
-      : [req.files.diseaseImages].filter(Boolean);
-
-    if (!diseaseImages.length || diseaseImages.length > 5) {
-      return res.status(400).json({
-        success: false,
-        message: `At least one and up to five disease images are required, got ${diseaseImages.length}`,
-      });
-    }
-
-    // if (diseaseImages.length !== parsedDiseaseProtection.length) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: `Mismatch in number of disease images: expected ${parsedDiseaseProtection.length} diseaseProtection entries to match ${diseaseImages.length} disease images. Each disease entry must have one corresponding image.`,
-    //   });
-    // }
 
     const diseaseProtectionWithImages = parsedDiseaseProtection.map(
       (disease, index) => ({
         ...disease,
-        image: diseaseImages.map((item) => item.path),
+        image: diseaseImagesGrouped[index],
       })
     );
 
-    // Check for duplicate crop name (case-insensitive)
+    // Check for duplicate crop name
     const existingCrop = await Crop.findOne({
       cropName: cropName.toLowerCase(),
     });
@@ -296,7 +346,6 @@ export const createCrop = async (req, res) => {
     // Save crop to database
     const savedCrop = await crop.save();
 
-    // Return success response with virtual field
     return res.status(201).json({
       success: true,
       data: {
@@ -310,12 +359,8 @@ export const createCrop = async (req, res) => {
     if (req.files) {
       const images = [
         ...(req.files.cropImage || []),
-        ...(Array.isArray(req.files.pestImages)
-          ? req.files.pestImages
-          : [req.files.pestImages] || []),
-        ...(Array.isArray(req.files.diseaseImages)
-          ? req.files.diseaseImages
-          : [req.files.diseaseImages] || []),
+        ...(req.files.pestImages || []),
+        ...(req.files.diseaseImages || []),
       ].filter((image) => image && image.filename);
       for (const image of images) {
         await cloudinary.uploader.destroy(image.filename).catch((err) => {
@@ -331,7 +376,6 @@ export const createCrop = async (req, res) => {
         message: `Multer error: ${error.message}`,
       });
     }
-
     if (error.name === "ValidationError") {
       const errors = Object.values(error.errors).map((err) => err.message);
       return res.status(400).json({
@@ -339,21 +383,18 @@ export const createCrop = async (req, res) => {
         message: `Validation failed: ${errors.join(", ")}`,
       });
     }
-
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
         message: "A crop with this name already exists",
       });
     }
-
     if (error.message.includes("A variety of this crop already exists")) {
       return res.status(409).json({
         success: false,
         message: error.message,
       });
     }
-
     if (
       error.message.includes("Only JPEG and PNG images are allowed") ||
       error.code === "LIMIT_FILE_SIZE"
@@ -363,7 +404,6 @@ export const createCrop = async (req, res) => {
         message: error.message,
       });
     }
-
     if (error instanceof SyntaxError && error.message.includes("JSON")) {
       return res.status(400).json({
         success: false,
@@ -371,7 +411,6 @@ export const createCrop = async (req, res) => {
       });
     }
 
-    // Generic server error
     console.error("Error in createCrop:", error);
     return res.status(500).json({
       success: false,
