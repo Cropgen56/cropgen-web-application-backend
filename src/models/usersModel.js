@@ -26,7 +26,7 @@ const userSchema = new Schema(
       type: String,
       validate: {
         validator: function (v) {
-          return /^[0-9]{10,15}$/.test(v);
+          return /^\+\d{10,12}$/.test(v);
         },
         message: (props) => `${props.value} is not a valid phone number!`,
       },
@@ -77,6 +77,7 @@ const userSchema = new Schema(
       type: Date,
       default: null,
     },
+    isVerified: { type: Boolean, default: false },
   },
   {
     timestamps: true,

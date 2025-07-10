@@ -13,6 +13,9 @@ import {
   loginRequest,
   verifyLoginOTP,
   verifySignupOTP,
+  signupPhoneRequest,
+  verifyUser,
+  googleLoginMobile,
 } from "../controllers/authController.js";
 
 import {
@@ -24,6 +27,9 @@ const router = express.Router();
 
 // login with google routes
 router.post("/google", googleLogin);
+
+// login with goolge mobile
+router.post("/google-mobile", googleLoginMobile);
 
 // common routes
 router.post("/signup", signup);
@@ -56,5 +62,9 @@ router.post("/signup/request", signupRequest);
 router.post("/login/request", loginRequest);
 router.post("/signup/verify", verifySignupOTP);
 router.post("/login/verify", verifyLoginOTP);
+
+// mobile application authentication routes
+router.post("/signup/mobile/request", signupPhoneRequest);
+router.post("/verify/mobile/request", verifyUser);
 
 export default router;
