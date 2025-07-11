@@ -1,85 +1,58 @@
-CropGen Web Application Backend
-Description
-The CropGen Web Application Backend provides the server-side logic for the CropGen platform, which offers tools for analyzing and managing crop data using geospatial information from Google Earth Engine.
-Features
+# 🌱 CropGen Web Application Backend
 
-User authentication and authorization
-File upload and management with Cloudinary
-Geospatial data processing with Google Earth Engine
-Email notifications
-RESTful API endpoints
-Database management with MongoDB 
+The CropGen Web Application Backend powers the server-side functionality for the CropGen platform, enabling advanced crop data analysis and management using geospatial data from Google Earth Engine.
 
-Technologies Used
+---
 
-Node.js
-Express.js
-MongoDB with Mongoose
-Google Earth Engine
-Cloudinary
-Firebase
-JWT for authentication
-Jest for testing
+## 📖 Description
 
-Prerequisites
+The CropGen Web Application Backend provides robust server-side logic to support the CropGen platform. It facilitates crop data analysis and management by leveraging geospatial information from Google Earth Engine, offering a scalable and secure backend for agricultural data processing.
 
-Node.js (version 14 or later)
-MongoDB (running locally on port 27017 or configured via MONGODB_URI)
-Google Earth Engine account and service account key
-Cloudinary account
-Firebase project and service account key
-Email account for sending notifications
+---
 
-Installation
+## ✨ Features
 
-Clone the repository:
+- **User Authentication & Authorization:** Secure user management with JWT-based authentication.  
+- **File Upload & Management:** Seamless file handling and storage using Cloudinary.  
+- **Geospatial Data Processing:** Analyze crop data with Google Earth Engine integration.  
+- **Email Notifications:** Automated email alerts powered by Nodemailer.  
+- **RESTful API Endpoints:** Well-structured APIs for seamless frontend integration.  
+- **Database Management:** Dual support for MongoDB (via Mongoose) and MySQL (via Sequelize).  
+
+---
+
+## 🛠️ Technologies Used
+
+- **Node.js:** Runtime environment for server-side JavaScript  
+- **Express.js:** Web framework for building RESTful APIs  
+- **MongoDB with Mongoose:** NoSQL database for flexible data storage  
+- **MySQL with Sequelize:** Relational database for structured data  
+- **Google Earth Engine:** Geospatial data processing and analysis  
+- **Cloudinary:** Cloud-based file upload and management  
+- **Firebase:** Backend services for authentication and notifications  
+- **JWT:** Secure token-based authentication  
+- **Jest:** Testing framework for unit and integration tests  
+
+---
+
+## 📋 Prerequisites
+
+Before setting up the project, ensure you have the following:
+
+- Node.js (version 14 or later)  
+- MongoDB (running locally on port 27017 or configured via `MONGODB_URI`)  
+- MySQL (running locally or configured via environment variables)  
+- Google Earth Engine account with a service account key  
+- Cloudinary account with API credentials  
+- Firebase project with a service account key  
+- Email account for sending notifications (e.g., Gmail)  
+
+---
+
+## 🚀 Installation
+
+### 1. Clone the Repository:
+
+```bash
 git clone https://github.com/[username]/cropgen-web-application-backend.git
-
-
-Navigate to the project directory:
 cd cropgen-web-application-backend
-
-
-Install dependencies:
-npm install
-
-
-
-Configuration
-Create a .env file in the root directory with the following variables:
-PORT=3000
-MONGODB_URI=mongodb://localhost:27017/cropgen
-MYSQL_HOST=localhost
-MYSQL_USER=user
-MYSQL_PASSWORD=password
-MYSQL_DATABASE=cropgen
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
-GOOGLE_APPLICATION_CREDENTIALS=/path/to/google-service-account-key.json
-FIREBASE_SERVICE_ACCOUNT_KEY=/path/to/firebase-service-account-key.json
-JWT_SECRET=your_jwt_secret
-EMAIL_SERVICE=gmail
-EMAIL_USER=your_email@gmail.com
-EMAIL_PASS=your_email_password
-
-Replace the placeholders with your actual credentials and file paths.
-Note: Do not commit the .env file or any sensitive key files to version control. Add .env to your .gitignore file.
-Usage
-To start the server:
-npm start
-
-The server will run on the port specified in the .env file or default to 3000.
-To run tests:
-npm test
-
-API Documentation
-The API endpoints are defined in the routes folder. For detailed documentation, please refer to the source code or contact the development team.
-Testing
-Tests are written using Jest and Supertest. An in-memory MongoDB instance is used for testing to ensure isolation.
-Contributing
-Contributions are welcome. Please fork the repository and submit a pull request with your changes.
-License
-This project is licensed under the ISC License.
-Contact
-For any inquiries, please open an issue on the GitHub repository.
