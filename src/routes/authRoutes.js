@@ -65,6 +65,7 @@ router.post("/signup/mobile", signupWithFirebase);
 router.post("/login/is-exist", isUserExist);
 router.post("/login/mobile", loginWithPhone);
 
+// apis for nodemailer
 router.post("/signup/request", signupRequest);
 router.post("/login/request", loginRequest);
 router.post("/signup/verify", verifySignupOTP);
