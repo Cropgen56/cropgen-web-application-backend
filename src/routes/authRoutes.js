@@ -13,9 +13,11 @@ import {
   loginRequest,
   verifyLoginOTP,
   verifySignupOTP,
-  signupPhoneRequest,
-  verifyUser,
   googleLoginMobile,
+  checkUser,
+  signupWithFirebase,
+  isUserExist,
+  loginWithPhone,
 } from "../controllers/authController.js";
 
 import {
@@ -58,13 +60,14 @@ router.patch(
 router.post("/register-user", registerUser);
 
 // mobile application authentication routes
+router.post("/signup/check-user", checkUser);
+router.post("/signup/mobile", signupWithFirebase);
+router.post("/login/is-exist", isUserExist);
+router.post("/login/mobile", loginWithPhone);
+
 router.post("/signup/request", signupRequest);
 router.post("/login/request", loginRequest);
 router.post("/signup/verify", verifySignupOTP);
 router.post("/login/verify", verifyLoginOTP);
-
-// mobile application authentication routes
-router.post("/signup/mobile/request", signupPhoneRequest);
-router.post("/verify/mobile/request", verifyUser);
 
 export default router;

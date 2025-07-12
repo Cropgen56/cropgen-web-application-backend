@@ -4,6 +4,7 @@ import { getUserDataFromGoogle } from "../utils/getUserData.js";
 import { OAuth2Client } from "google-auth-library";
 import Organization from "../models/organizationModel.js";
 import nodemailer from "nodemailer";
+import admin from "firebase-admin";
 import { loginOtpEmail, signupOtpEmail, welcomeEmail } from "../utils/email.js";
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -132,7 +133,6 @@ export const googleLoginMobile = async (req, res) => {
     }
 
     // Generate JWT Token for authentication
-
     const payload = {
       id: user._id,
       firstName: user.firstName,
@@ -582,6 +582,268 @@ export const updateUserById = async (req, res) => {
   }
 };
 
+// mobile application api controller
+export const checkUser = async (req, res) => {
+  const { phone, organizationCode } = req.body;
+
+  try {
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone number is required",
+        data: null,
+      });
+    }
+
+    const user = await User.findOne({ phone });
+    if (user) {
+      return res.status(400).json({
+        success: false,
+        message: "User already registered",
+        data: null,
+      });
+    }
+
+    if (organizationCode) {
+      const organization = await Organization.findOne({ organizationCode });
+      if (!organization) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid organization code",
+          data: null,
+        });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "User can proceed with signup",
+      data: { allowed: true },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      data: null,
+    });
+  }
+};
+
+// check phone number is exist or not to send the otp
+export const isUserExist = async (req, res) => {
+  const { phone } = req.body;
+
+  try {
+    // Basic input validation
+    if (!phone || typeof phone !== "string" || phone.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Phone number is required",
+        data: null,
+      });
+    }
+
+    // Check if phone starts with +91 and has 13 characters (+91 followed by 10 digits)
+    const phoneRegex = /^\+91\d{10}$/;
+    if (!phoneRegex.test(phone)) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone number must be in +91XXXXXXXXXX format",
+        data: null,
+      });
+    }
+
+    // Check if user exists
+    const user = await User.findOne({ phone });
+
+    if (user) {
+      return res.status(200).json({
+        success: true,
+        message: "User exists can process",
+        data: { exists: true },
+      });
+    } else {
+      return res.status(404).json({
+        success: true,
+        message: "User does not exist. Proceed with signup.",
+        data: { exists: false },
+      });
+    }
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      data: null,
+    });
+  }
+};
+
+// mobile singup api controller
+export const signupWithFirebase = async (req, res) => {
+  try {
+    const { firstName, lastName, terms, organizationCode, idToken } = req.body;
+
+    // Validate required fields
+    if (!firstName || !idToken || terms !== true) {
+      return res.status(400).json({
+        success: false,
+        message: "Required fields: firstName, idToken, terms",
+      });
+    }
+
+    // Verify Firebase ID token
+    let decodedToken;
+    try {
+      decodedToken = await admin.auth().verifyIdToken(idToken);
+    } catch (error) {
+      console.log(error);
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired ID token",
+      });
+    }
+
+    const { phone_number, uid } = decodedToken;
+
+    if (!phone_number) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone number not found in ID token",
+      });
+    }
+
+    // Check for existing user
+    const query = {
+      $or: [{ firebaseUid: uid }, { phone: phone_number }],
+    };
+
+    const existingUser = await User.findOne(query);
+
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: "User already exists.",
+      });
+    }
+
+    // Handle organization code
+    const orgCode = organizationCode
+      ? organizationCode.toUpperCase()
+      : "CROPGEN";
+
+    const organization = await Organization.findOne({
+      organizationCode: orgCode,
+    });
+
+    if (!organization) {
+      return res.status(404).json({
+        success: false,
+        message: `Organization '${orgCode}' not found.`,
+      });
+    }
+
+    // Create user
+    const newUser = await User.create({
+      firstName,
+      lastName,
+      phone: phone_number,
+      role: "farmer",
+      terms,
+      organization: organization._id,
+      firebaseUid: uid,
+    });
+
+    // Generate JWT Token for authentication
+    const payload = {
+      id: newUser._id,
+      firstName: newUser.firstName,
+      lastName: newUser.lastName,
+      phone: newUser.phone,
+      role: newUser.role,
+      organization: newUser.organization,
+      firebaseUid: newUser.firebaseUid,
+    };
+    const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: "15d" });
+
+    return res.status(201).json({
+      success: true,
+      message: "User registered successfully.",
+      accessToken,
+      user: {
+        id: newUser._id,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        email: newUser.email,
+        phone: newUser.phone,
+        role: newUser.role,
+        organizationCode: orgCode,
+      },
+    });
+  } catch (error) {
+    console.error("Signup Mobile Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+      error: error.message,
+    });
+  }
+};
+
+// mobile singup api controller
+export const loginWithPhone = async (req, res) => {
+  const { phone } = req.body;
+
+  try {
+    // Validate phone format
+    const phoneRegex = /^\+91\d{10}$/;
+    if (!phone || !phoneRegex.test(phone)) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone number must be in +91XXXXXXXXXX format",
+        data: null,
+      });
+    }
+
+    // Check if user exists
+    const user = await User.findOne({ phone });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+        data: null,
+      });
+    }
+
+    // Generate JWT and send to the client for login
+    const payload = {
+      id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+      organization: user.organization,
+    };
+
+    const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: "15d",
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "User Login successful",
+      data: { accessToken, user },
+    });
+  } catch (error) {
+    console.error("Login Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      data: null,
+    });
+  }
+};
+
 // Configure nodemailer transport
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -907,151 +1169,6 @@ export const verifyLoginOTP = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error during OTP verification",
-    });
-  }
-};
-
-export const signupPhoneRequest = async (req, res) => {
-  try {
-    // 1. Extract required fields from request body
-    const { firstName, lastName, phone, terms, organizationCode } = req.body;
-
-    // 2. Validate required fields
-    if (!firstName || !lastName || !phone || terms === undefined) {
-      return res
-        .status(400)
-        .json({ success: false, message: "All fields are required" });
-    }
-
-    // 3. Validate phone format (e.g., +919876543210)
-    const phoneRegex = /^\+\d{10,12}$/;
-    if (!phoneRegex.test(phone)) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Invalid phone number format. Use +[country code][10-12 digits], e.g., +919876543210",
-      });
-    }
-
-    // 4. Validate terms
-    if (!terms) {
-      return res.status(400).json({
-        success: false,
-        message: "You must accept the terms and conditions",
-      });
-    }
-
-    // 5. Convert organizationCode to uppercase or default to 'CROPGEN'
-    const orgCode = organizationCode
-      ? organizationCode.toUpperCase()
-      : "CROPGEN";
-
-    // 6. Find organization
-    const organization = await Organization.findOne({
-      organizationCode: orgCode,
-    });
-
-    if (!organization) {
-      return res.status(404).json({
-        success: false,
-        message: `Organization '${orgCode}' not found`,
-      });
-    }
-
-    // 7. Check if phone number already exists
-    const existingUser = await User.findOne({ phone });
-    if (existingUser) {
-      if (existingUser.isVerified) {
-        // Fully registered user
-        return res.status(400).json({
-          success: false,
-          message: "User already exists",
-        });
-      }
-      // Delete unverified user to allow a new signup attempt
-      await User.deleteOne({ _id: existingUser._id });
-    }
-
-    // 8. Create temporary user
-    const tempUser = new User({
-      firstName,
-      lastName,
-      phone,
-      terms,
-      organization: organization._id,
-      isVerified: false,
-      createdAt: new Date(),
-    });
-
-    await tempUser.save();
-
-    // 9. Respond with success (Firebase handles OTP sending)
-    res.status(200).json({
-      success: true,
-      message: "OTP sent to phone",
-      userId: tempUser._id,
-      phone: tempUser.phone,
-    });
-  } catch (error) {
-    console.error("Signup request error:", {
-      message: error.message,
-      stack: error.stack,
-    });
-    res
-      .status(500)
-      .json({ success: false, message: "Server error during signup request" });
-  }
-};
-
-export const verifyUser = async (req, res) => {
-  try {
-    // 1. Extract userId from request body
-    const { userId } = req.body;
-
-    // 2. Validate userId
-    if (!userId) {
-      return res
-        .status(400)
-        .json({ success: false, message: "User ID is required" });
-    }
-
-    // 3. Find user
-    const user = await User.findById(userId);
-    if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
-
-    // 4. Check if already verified
-    if (user.isVerified) {
-      return res.status(200).json({
-        success: true,
-        message: "User verified successfully",
-        userId: user._id,
-        phone: user.phone,
-      });
-    }
-
-    // 5. Update user to verified
-    user.isVerified = true;
-    await user.save();
-
-    // 6. Respond with success
-    res.status(200).json({
-      success: true,
-      message: "User verified successfully",
-      userId: user._id,
-      phone: user.phone,
-    });
-  } catch (error) {
-    console.error("Verify user error:", {
-      message: error.message,
-      stack: error.stack,
-    });
-    res.status(500).json({
-      success: false,
-      message: "Server error during user verification",
     });
   }
 };

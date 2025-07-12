@@ -8,7 +8,7 @@ import blogRoutes from "./src/routes/blogRoutes.js";
 import organizationRoutes from "./src/routes/organizationRoutes.js";
 import operationRoutes from "./src/routes/operationRoutes.js";
 import cropRoutes from "./src/routes/cropRoutes.js";
-
+import "./src/config/firebaseConfig.js";
 import { createToken } from "./src/utils/tokenUtility.js";
 dotenv.config();
 
