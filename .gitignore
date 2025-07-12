@@ -11,6 +11,7 @@ yarn-error.log*
 
 # Environment variables
 .env
+src/config/*.json
 
 # Build outputs
 dist/
