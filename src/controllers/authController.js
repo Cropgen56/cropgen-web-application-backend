@@ -790,6 +790,60 @@ export const signupWithFirebase = async (req, res) => {
 };
 
 // mobile singup api controller
+// export const loginWithPhone = async (req, res) => {
+//   const { phone } = req.body;
+
+//   try {
+//     // Validate phone format
+//     const phoneRegex = /^\+91\d{10}$/;
+//     if (!phone || !phoneRegex.test(phone)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Phone number must be in +91XXXXXXXXXX format",
+//         data: null,
+//       });
+//     }
+
+//     // Check if user exists
+//     const user = await User.findOne({ phone });
+
+//     if (!user) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "User not found",
+//         data: null,
+//       });
+//     }
+
+//     // Generate JWT and send to the client for login
+//     const payload = {
+//       id: user._id,
+//       firstName: user.firstName,
+//       lastName: user.lastName,
+//       email: user.email,
+//       role: user.role,
+//       organization: user.organization,
+//     };
+
+//     const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
+//       expiresIn: "15d",
+//     });
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "User Login successful",
+//       data: { accessToken, user },
+//     });
+//   } catch (error) {
+//     console.error("Login Error:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Server error",
+//       data: null,
+//     });
+//   }
+// };
+
 export const loginWithPhone = async (req, res) => {
   const { phone } = req.body;
 
@@ -805,17 +859,35 @@ export const loginWithPhone = async (req, res) => {
     }
 
     // Check if user exists
-    const user = await User.findOne({ phone });
+    let user = await User.findOne({ phone });
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-        data: null,
+      // Find default organization
+      const orgCode = "CROPGEN";
+      const organization = await Organization.findOne({
+        organizationCode: orgCode,
+      });
+
+      if (!organization) {
+        return res.status(404).json({
+          success: false,
+          message: `Default organization '${orgCode}' not found.`,
+          data: null,
+        });
+      }
+
+      // Create new user with default values
+      user = await User.create({
+        firstName: "User",
+        lastName: "",
+        phone,
+        role: "farmer",
+        terms: true,
+        organization: organization._id,
       });
     }
 
-    // Generate JWT and send to the client for login
+    // Generate JWT for login
     const payload = {
       id: user._id,
       firstName: user.firstName,
@@ -831,7 +903,9 @@ export const loginWithPhone = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "User Login successful",
+      message: user.lastName
+        ? "User login successful"
+        : "User registered and logged in successfully",
       data: { accessToken, user },
     });
   } catch (error) {

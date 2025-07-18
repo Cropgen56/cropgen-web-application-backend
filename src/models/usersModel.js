@@ -9,12 +9,10 @@ const userSchema = new Schema(
     },
     firstName: {
       type: String,
-      minlength: 1,
       maxlength: 50,
     },
     lastName: {
       type: String,
-      minlength: 1,
       maxlength: 50,
     },
     email: {
