@@ -18,6 +18,7 @@ import {
   signupWithFirebase,
   isUserExist,
   loginWithPhone,
+  auth,
 } from "../controllers/authController.js";
 
 import {
@@ -32,6 +33,9 @@ router.post("/google", googleLogin);
 
 // login with goolge mobile
 router.post("/google-mobile", googleLoginMobile);
+
+// web login api
+router.post("/authenticate", auth);
 
 // common routes
 router.post("/signup", signup);

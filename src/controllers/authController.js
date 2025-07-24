@@ -151,6 +151,135 @@ export const googleLoginMobile = async (req, res) => {
   }
 };
 
+// web login api for both singup and login
+export const auth = async (req, res) => {
+  try {
+    const { email, password, terms, organizationCode } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required.",
+      });
+    }
+
+    // Check for existing user
+    const existingUser = await User.findOne({ email });
+
+    if (existingUser) {
+      if (password !== existingUser.password) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid password.",
+        });
+      }
+
+      // Fetch organization code from the database
+      const organization = await Organization.findById(
+        existingUser.organization
+      );
+      if (!organization) {
+        return res.status(404).json({
+          success: false,
+          message: "Organization not found.",
+        });
+      }
+      const orgCode = organization.organizationCode;
+
+      const token = jwt.sign(
+        {
+          id: existingUser._id,
+          email: existingUser.email,
+          role: existingUser.role,
+          organization: existingUser.organization,
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: "15d" }
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: "User signed in successfully.",
+        token,
+        role: existingUser.role,
+        user: {
+          id: existingUser._id,
+          email: existingUser.email,
+          role: existingUser.role,
+          organizationCode: orgCode,
+        },
+      });
+    }
+
+    // Signup flow
+    if (terms !== true) {
+      return res.status(400).json({
+        success: false,
+        message: "Terms must be accepted for signup.",
+      });
+    }
+
+    // Use provided organizationCode or default to 'CROPGEN'
+    const orgCode = organizationCode
+      ? organizationCode.toUpperCase()
+      : "CROPGEN";
+
+    // Find organization by code
+    const organization = await Organization.findOne({
+      organizationCode: orgCode,
+    });
+    if (!organization) {
+      return res.status(404).json({
+        success: false,
+        message: `Organization '${orgCode}' not found.`,
+      });
+    }
+
+    // Create new user, setting optional fields to empty strings if not provided
+    const newUser = await User.create({
+      firstName: req.body.firstName || "",
+      lastName: req.body.lastName || "",
+      email,
+      phone: req.body.phone || "",
+      password,
+      role: req.body.role || "farmer",
+      terms,
+      organization: organization._id,
+    });
+
+    const token = jwt.sign(
+      {
+        id: newUser._id,
+        email: newUser.email,
+        role: newUser.role,
+        organization: newUser.organization,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "15d" }
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: "User registered and signed in successfully.",
+      token,
+      role: newUser.role,
+      user: {
+        id: newUser._id,
+        email: newUser.email,
+        role: newUser.role,
+        organizationCode: orgCode,
+      },
+    });
+  } catch (error) {
+    console.error("Auth Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+      error: error.message,
+    });
+  }
+};
+
 // Signup controller
 export const signup = async (req, res) => {
   try {
