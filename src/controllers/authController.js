@@ -5,7 +5,7 @@ import { OAuth2Client } from "google-auth-library";
 import Organization from "../models/organizationModel.js";
 import nodemailer from "nodemailer";
 import admin from "firebase-admin";
-import mongoose from "mongoose";
+
 import { loginOtpEmail, signupOtpEmail, welcomeEmail } from "../utils/email.js";
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -274,6 +274,80 @@ export const auth = async (req, res) => {
     });
   } catch (error) {
     console.error("Auth Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+      error: error.message,
+    });
+  }
+};
+
+// admin login
+export const signin = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required.",
+      });
+    }
+
+    // Check for existing user
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    // Verify password
+    if (password !== user.password) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid password.",
+      });
+    }
+
+    // Fetch organization
+    const organization = await Organization.findById(user.organization);
+    if (!organization) {
+      return res.status(404).json({
+        success: false,
+        message: "Organization not found.",
+      });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        organization: user.organization,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "15d" }
+    );
+
+    // Return response
+    return res.status(200).json({
+      success: true,
+      message: "User signed in successfully.",
+      token,
+      role: user.role,
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        organizationCode: organization.organizationCode,
+      },
+    });
+  } catch (error) {
+    console.error("Login Error:", error);
     return res.status(500).json({
       success: false,
       message: "Internal server error.",
