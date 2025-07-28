@@ -1,27 +1,22 @@
 import express from "express";
 import {
   createBlog,
+  deleteBlog,
   getAllBlogs,
   getBlogById,
   updateBlog,
-  deleteBlog,
-  addCommentToBlog,
 } from "../controllers/blogController.js";
-import { isAuthenticated, checkApiKey } from "../middleware/authMiddleware.js";
-import upload from "../middleware/uploadImage.js";
+import {
+  isAuthenticated,
+  authorizeRoles,
+} from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.post("/create", isAuthenticated, createBlog);
-router.get("/list", checkApiKey, getAllBlogs);
-router.get("/details/:blogId", checkApiKey, getBlogById);
-router.put(
-  "/update/:blogId",
-  isAuthenticated,
-  // upload.single("image"),
-  updateBlog
-);
-router.delete("/delete/:blogId", isAuthenticated, deleteBlog);
-router.post("/comment/:blogId", checkApiKey, addCommentToBlog);
+router.post("/create", isAuthenticated, authorizeRoles("admin"), createBlog);
+router.get("/", getAllBlogs);
+router.get("/:id", getBlogById);
+router.put("/:id", isAuthenticated, authorizeRoles("admin"), updateBlog);
+router.delete("/:id", isAuthenticated, authorizeRoles("admin"), deleteBlog);
 
 export default router;
