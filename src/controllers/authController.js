@@ -5,6 +5,7 @@ import { OAuth2Client } from "google-auth-library";
 import Organization from "../models/organizationModel.js";
 import nodemailer from "nodemailer";
 import admin from "firebase-admin";
+import mongoose from "mongoose";
 import { loginOtpEmail, signupOtpEmail, welcomeEmail } from "../utils/email.js";
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -184,6 +185,7 @@ export const auth = async (req, res) => {
           message: "Organization not found.",
         });
       }
+
       const orgCode = organization.organizationCode;
 
       const token = jwt.sign(
@@ -273,147 +275,6 @@ export const auth = async (req, res) => {
   } catch (error) {
     console.error("Auth Error:", error);
     return res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-      error: error.message,
-    });
-  }
-};
-
-// Signup controller
-export const signup = async (req, res) => {
-  try {
-    const {
-      firstName,
-      lastName,
-      email,
-      phone,
-      password,
-      role,
-      terms,
-      organizationCode,
-    } = req.body;
-
-    // Validate required fields
-    if (!firstName || !email || !phone || !password || terms !== true) {
-      return res.status(400).json({
-        success: false,
-        message: "Required fields: firstName, email, phone, password, terms",
-      });
-    }
-
-    // Convert code to uppercase or default to 'CROPGEN'
-    const orgCode = organizationCode
-      ? organizationCode.toUpperCase()
-      : "CROPGEN";
-
-    // Find organization (case-insensitive, always uppercase)
-    const organization = await Organization.findOne({
-      organizationCode: orgCode,
-    });
-
-    if (!organization) {
-      return res.status(404).json({
-        success: false,
-        message: `Organization '${orgCode}' not found.`,
-      });
-    }
-
-    // Check for existing user
-    const existingUser = await User.findOne({ email });
-
-    if (existingUser) {
-      return res.status(409).json({
-        success: false,
-        message: "Email already exists.",
-      });
-    }
-
-    // Create user
-    const newUser = await User.create({
-      firstName,
-      lastName,
-      email,
-      phone,
-      password,
-      role: role || "farmer",
-      terms,
-      organization: organization._id,
-    });
-
-    return res.status(201).json({
-      success: true,
-      message: "User registered successfully.",
-      user: {
-        id: newUser._id,
-        firstName: newUser.firstName,
-        lastName: newUser.lastName,
-        email: newUser.email,
-        role: newUser.role,
-        organizationCode: orgCode,
-      },
-    });
-  } catch (error) {
-    console.error("Signup Error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-      error: error.message,
-    });
-  }
-};
-
-// Signin controller
-export const signin = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "Email and password are required.",
-      });
-    }
-
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found.",
-      });
-    }
-
-    if (password !== user.password) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid email or password.",
-      });
-    }
-
-    const token = jwt.sign(
-      {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
-        organization: user.organization,
-      },
-      JWT_SECRET,
-      {
-        expiresIn: "15d",
-      }
-    );
-
-    res.status(200).json({
-      message: "User signed in successfully.",
-      success: true,
-      token,
-      role: user.role,
-    });
-  } catch (error) {
-    res.status(500).json({
       success: false,
       message: "Internal server error.",
       error: error.message,
@@ -676,11 +537,64 @@ export const deleteUserByEmail = async (req, res) => {
 };
 
 // Update a user by ID
+// export const updateUserById = async (req, res) => {
+//   const { id } = req.params;
+//   const updateData = req.body;
+
+//   try {
+//     const user = await User.findByIdAndUpdate(id, updateData, {
+//       new: true,
+//       runValidators: true,
+//     }).populate({
+//       path: "organization",
+//       select: "organizationCode",
+//     });
+
+//     if (!user) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "User not found",
+//       });
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: "User updated successfully",
+//       user,
+//     });
+//   } catch (error) {
+//     console.error("Error updating user:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to update user",
+//       error: error.message,
+//     });
+//   }
+// };
+
 export const updateUserById = async (req, res) => {
   const { id } = req.params;
-  const updateData = req.body;
+  let updateData = req.body;
 
   try {
+    // Handle organizationCode if provided
+    if (updateData.organizationCode) {
+      const organization = await Organization.findOne({
+        organizationCode: updateData.organizationCode.toUpperCase(),
+      });
+
+      if (!organization) {
+        return res.status(404).json({
+          success: false,
+          message: `Organization '${updateData.organizationCode}' not found.`,
+        });
+      }
+
+      updateData.organization = organization._id;
+
+      delete updateData.organizationCode;
+    }
+
     const user = await User.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
@@ -710,7 +624,6 @@ export const updateUserById = async (req, res) => {
     });
   }
 };
-
 // mobile application api controller
 export const checkUser = async (req, res) => {
   const { phone, organizationCode } = req.body;

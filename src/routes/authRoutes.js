@@ -1,7 +1,5 @@
 import express from "express";
 import {
-  signup,
-  signin,
   getAllUsers,
   getUserById,
   googleLogin,
@@ -37,9 +35,6 @@ router.post("/google-mobile", googleLoginMobile);
 // web login api
 router.post("/authenticate", auth);
 
-// common routes
-router.post("/signup", signup);
-router.post("/signin", signin);
 router.get(
   "/users",
   isAuthenticated,
