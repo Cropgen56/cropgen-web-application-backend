@@ -47,6 +47,7 @@ if (cluster.isPrimary) {
         "https://cropydeals.cropgenapp.com",
         "http://localhost:3000",
         "http://localhost:5173",
+        "https://eelabcarbon.cropgenapp.com",
       ];
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
