@@ -30,7 +30,7 @@ export const getAllBlogs = async (req, res) => {
     res.status(200).json({
       success: true,
       count: blogs.length,
-      blogs,
+      data: blogs,
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
@@ -48,7 +48,7 @@ export const getBlogById = async (req, res) => {
     }
     res.status(200).json({
       success: true,
-      blog,
+      data: blog,
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
@@ -61,13 +61,10 @@ export const updateBlog = async (req, res) => {
     const { title, content } = req.body;
 
     if (!title && !content) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message:
-            "At least one field (title or content) is required to update",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "At least one field (title or content) is required to update",
+      });
     }
 
     const blog = await Blog.findByIdAndUpdate(

@@ -12,6 +12,7 @@ import operationRoutes from "./src/routes/operationRoutes.js";
 import cropRoutes from "./src/routes/cropRoutes.js";
 import "./src/config/firebaseConfig.js";
 import { createToken } from "./src/utils/tokenUtility.js";
+import { generateAdvisory } from "./src/controllers/advisoryController.js";
 
 dotenv.config();
 
@@ -22,7 +23,7 @@ if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);
 
   // Fork workers equal to the number of CPU cores
-  for (let i = 0; i < numCPUs; i++) {
+  for (let i = 0; i < 2; i++) {
     cluster.fork();
   }
 
@@ -60,6 +61,8 @@ if (cluster.isPrimary) {
   app.use(cors(corsOptions));
 
   app.use(express.json());
+
+  app.post("/generate-advisory-crop", generateAdvisory);
 
   // Routes
   app.use("/v1/api/auth", authRoutes);
