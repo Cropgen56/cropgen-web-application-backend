@@ -4,6 +4,7 @@ import OpenAI from "openai";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// validation schema
 const advisorySchema = Joi.object({
   crop_name: Joi.string().required(),
   sowing_date: Joi.string()
@@ -88,7 +89,6 @@ Use clear, structured headers as shown above (e.g., "DAY 1"). Write only in the 
     if (response.choices && response.choices.length > 0) {
       const advisoryText = response.choices[0].message.content.trim();
 
-      // --- Start: Split advisoryText into array of objects for 4 days ---
       const daySections = advisoryText.split(/DAY \d/).slice(1);
       const dayMatches = advisoryText.match(/DAY \d/g) || [];
 
