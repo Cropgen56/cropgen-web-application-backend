@@ -12,7 +12,7 @@ import operationRoutes from "./src/routes/operationRoutes.js";
 import cropRoutes from "./src/routes/cropRoutes.js";
 import "./src/config/firebaseConfig.js";
 import { createToken } from "./src/utils/tokenUtility.js";
-import { generateAdvisory } from "./src/controllers/advisoryController.js";
+// import { generateAdvisory } from "./src/controllers/advisoryController.js";
 
 dotenv.config();
 
@@ -62,7 +62,7 @@ if (cluster.isPrimary) {
 
   app.use(express.json());
 
-  app.post("/generate-advisory-crop", generateAdvisory);
+  // app.post("/generate-advisory-crop", generateAdvisory);
 
   // Routes
   app.use("/v1/api/auth", authRoutes);
