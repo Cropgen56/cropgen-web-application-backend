@@ -55,7 +55,7 @@ router.delete("/delete-user-by-email/:email", checkApiKey, deleteUserByEmail);
 router.patch(
   "/update-user/:id",
   isAuthenticated,
-  authorizeRoles("admin", "developer", "client"),
+  authorizeRoles("admin", "developer", "client", "farmer"),
   updateUserById
 );
 // cropydeals auth routes
