@@ -69,7 +69,7 @@ if (cluster.isPrimary) {
   app.use("/v1/api/operation", operationRoutes);
   app.use("/v1/api/crop", cropRoutes);
 
-  // Start Server and Sync Database for each worker
+  // Start Server and Sync Database for each
   const startServer = async () => {
     try {
       await connectToDatabase();
