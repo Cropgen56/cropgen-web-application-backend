@@ -1,7 +1,9 @@
 import Crop from "../models/cropModel.js";
 import cloudinary from "../config/cloudinaryConfig.js";
 import multer from "multer";
+import { getS3Url, deleteFileFromS3 } from "../utils/s3.js";
 
+// create the crop information
 export const createCrop = async (req, res) => {
   try {
     const {
@@ -188,9 +190,9 @@ export const createCrop = async (req, res) => {
     // Validate image uploads
     if (
       !req.files ||
-      !req.files.cropImage ||
-      !req.files.pestImages ||
-      !req.files.diseaseImages
+      !req.files.cropImage?.length ||
+      !req.files.pestImages?.length ||
+      !req.files.diseaseImages?.length
     ) {
       return res.status(400).json({
         success: false,
@@ -199,8 +201,10 @@ export const createCrop = async (req, res) => {
       });
     }
 
-    // Process crop image
-    const cropImage = req.files.cropImage[0]?.path;
+    // Process crop image (convert S3 key to full URL)
+    const cropImage = req.files.cropImage[0]?.key
+      ? getS3Url(req.files.cropImage[0].key)
+      : null;
     if (!cropImage) {
       return res.status(400).json({
         success: false,
@@ -208,7 +212,7 @@ export const createCrop = async (req, res) => {
       });
     }
 
-    // Group pest images by pest index
+    // Group pest images by pest index (use S3 keys converted to URLs)
     const pestImagesGrouped = {};
     req.files.pestImages.forEach((file) => {
       const match = file.fieldname.match(/pestImages\[(\d+)\]\[\d+\]/);
@@ -217,11 +221,11 @@ export const createCrop = async (req, res) => {
         if (!pestImagesGrouped[pestIndex]) {
           pestImagesGrouped[pestIndex] = [];
         }
-        pestImagesGrouped[pestIndex].push(file.path);
+        pestImagesGrouped[pestIndex].push(getS3Url(file.key));
       }
     });
 
-    // Group disease images by disease index
+    // Group disease images by disease index (use S3 keys converted to URLs)
     const diseaseImagesGrouped = {};
     req.files.diseaseImages.forEach((file) => {
       const match = file.fieldname.match(/diseaseImages\[(\d+)\]\[\d+\]/);
@@ -230,7 +234,7 @@ export const createCrop = async (req, res) => {
         if (!diseaseImagesGrouped[diseaseIndex]) {
           diseaseImagesGrouped[diseaseIndex] = [];
         }
-        diseaseImagesGrouped[diseaseIndex].push(file.path);
+        diseaseImagesGrouped[diseaseIndex].push(getS3Url(file.key));
       }
     });
 
@@ -295,18 +299,18 @@ export const createCrop = async (req, res) => {
       });
     }
 
-    // Assign grouped images to pest and disease entries
+    // Assign grouped images to pest and disease entries (using S3 URLs)
     const pestProtectionWithImages = parsedPestProtection.map(
       (pest, index) => ({
         ...pest,
-        image: pestImagesGrouped[index],
+        image: pestImagesGrouped[index] || [],
       })
     );
 
     const diseaseProtectionWithImages = parsedDiseaseProtection.map(
       (disease, index) => ({
         ...disease,
-        image: diseaseImagesGrouped[index],
+        image: diseaseImagesGrouped[index] || [],
       })
     );
 
@@ -354,16 +358,17 @@ export const createCrop = async (req, res) => {
       message: "Crop created successfully",
     });
   } catch (error) {
-    // Clean up uploaded images on error
+    // Clean up uploaded images on S3 if error occurs
     if (req.files) {
       const images = [
         ...(req.files.cropImage || []),
         ...(req.files.pestImages || []),
         ...(req.files.diseaseImages || []),
-      ].filter((image) => image && image.filename);
+      ].filter((image) => image && image.key);
+
       for (const image of images) {
-        await cloudinary.uploader.destroy(image.filename).catch((err) => {
-          console.error("Failed to delete image from Cloudinary:", err);
+        await deleteFileFromS3(image.key).catch((err) => {
+          console.error("Failed to delete image from S3:", err);
         });
       }
     }
@@ -419,6 +424,7 @@ export const createCrop = async (req, res) => {
   }
 };
 
+// update the crop information
 export const updateCrop = async (req, res) => {
   try {
     const {
@@ -458,10 +464,8 @@ export const updateCrop = async (req, res) => {
         .json({ success: false, message: "Crop not found" });
     }
 
-    // Store old images for cleanup
+    // Store old crop image for cleanup (full URL)
     const oldCropImage = crop.cropImage;
-    const oldPestImages = crop.pestProtection.map((p) => p.image).flat();
-    const oldDiseaseImages = crop.diseaseProtection.map((d) => d.image).flat();
 
     // Update basic fields
     if (cropName) {
@@ -491,11 +495,29 @@ export const updateCrop = async (req, res) => {
     if (harvesting) crop.harvesting = harvesting;
     if (postHarvesting) crop.postHarvesting = postHarvesting;
 
+    // Extract S3 base URL for parsing keys
+    const bucketName = process.env.S3_BUCKET_NAME;
+    const region = process.env.AWS_REGION;
+    const baseUrl = `https://${bucketName}.s3.${region}.amazonaws.com/`;
+
     // Handle crop image
+    let imagesToDelete = [];
     if (removeCropImage === "true") {
-      delete crop.cropImage; // Remove the field since it's optional in the updated schema
-    } else if (req.files?.cropImage?.[0]?.path) {
-      crop.cropImage = req.files.cropImage[0].path;
+      if (!req.files?.cropImage?.[0]?.url) {
+        return res.status(400).json({
+          success: false,
+          message: "A new crop image is required if removing the existing one",
+        });
+      }
+      if (oldCropImage) {
+        imagesToDelete.push(oldCropImage);
+      }
+      crop.cropImage = req.files.cropImage[0].url;
+    } else if (req.files?.cropImage?.[0]?.url) {
+      if (oldCropImage) {
+        imagesToDelete.push(oldCropImage);
+      }
+      crop.cropImage = req.files.cropImage[0].url;
     }
 
     // Handle pestProtection
@@ -504,6 +526,7 @@ export const updateCrop = async (req, res) => {
         pestProtection,
         "pestProtection"
       );
+      const oldPestImages = crop.pestProtection.map((p) => p.image).flat();
       const newPestImagesGrouped = {};
       if (req.files?.newPestImages) {
         req.files.newPestImages.forEach((file) => {
@@ -513,7 +536,7 @@ export const updateCrop = async (req, res) => {
             if (!newPestImagesGrouped[pestIndex]) {
               newPestImagesGrouped[pestIndex] = [];
             }
-            newPestImagesGrouped[pestIndex].push(file.path);
+            newPestImagesGrouped[pestIndex].push(file.url);
           }
         });
       }
@@ -529,6 +552,12 @@ export const updateCrop = async (req, res) => {
         }
       );
       crop.pestProtection = pestProtectionWithImages;
+
+      // Mark old pest images for deletion
+      const newPestImages = pestProtectionWithImages.map((p) => p.image).flat();
+      imagesToDelete.push(
+        ...oldPestImages.filter((img) => !newPestImages.includes(img))
+      );
     }
 
     // Handle diseaseProtection
@@ -537,6 +566,9 @@ export const updateCrop = async (req, res) => {
         diseaseProtection,
         "diseaseProtection"
       );
+      const oldDiseaseImages = crop.diseaseProtection
+        .map((d) => d.image)
+        .flat();
       const newDiseaseImagesGrouped = {};
       if (req.files?.newDiseaseImages) {
         req.files.newDiseaseImages.forEach((file) => {
@@ -548,7 +580,7 @@ export const updateCrop = async (req, res) => {
             if (!newDiseaseImagesGrouped[diseaseIndex]) {
               newDiseaseImagesGrouped[diseaseIndex] = [];
             }
-            newDiseaseImagesGrouped[diseaseIndex].push(file.path);
+            newDiseaseImagesGrouped[diseaseIndex].push(file.url);
           }
         });
       }
@@ -564,39 +596,59 @@ export const updateCrop = async (req, res) => {
         }
       );
       crop.diseaseProtection = diseaseProtectionWithImages;
+
+      // Mark old disease images for deletion
+      const newDiseaseImages = diseaseProtectionWithImages
+        .map((d) => d.image)
+        .flat();
+      imagesToDelete.push(
+        ...oldDiseaseImages.filter((img) => !newDiseaseImages.includes(img))
+      );
     }
 
     // Save the updated crop
     const savedCrop = await crop.save();
 
-    // Clean up old images from Cloudinary
-    const newPestImages = crop.pestProtection.map((p) => p.image).flat();
-    const newDiseaseImages = crop.diseaseProtection.map((d) => d.image).flat();
-    const imagesToDelete = [
-      ...(oldCropImage &&
-      oldCropImage !== crop.cropImage &&
-      removeCropImage !== "true"
-        ? [oldCropImage]
-        : []),
-      ...oldPestImages.filter((img) => !newPestImages.includes(img)),
-      ...oldDiseaseImages.filter((img) => !newDiseaseImages.includes(img)),
-    ];
-
+    // Clean up old images from S3
     for (const image of imagesToDelete) {
-      const publicId = image.split("/").pop().split(".")[0];
-      await cloudinary.uploader
-        .destroy(`farm_images/${publicId}`)
-        .catch((err) => {
-          console.error("Failed to delete image from Cloudinary:", err);
+      if (!image) {
+        console.warn("Skipping deletion of undefined image URL");
+        continue;
+      }
+      const key = image.startsWith(baseUrl)
+        ? image.replace(baseUrl, "")
+        : image;
+      if (key) {
+        await deleteFileFromS3(key).catch((err) => {
+          console.error(`Failed to delete image from S3: ${key}`, err);
         });
+      }
     }
 
     return res.status(200).json({
       success: true,
-      data: savedCrop,
+      data: {
+        ...savedCrop.toJSON(),
+        varietyCount: savedCrop.varietyCount,
+      },
       message: "Crop updated successfully",
     });
   } catch (error) {
+    // Clean up new images from S3 on error
+    if (req.files) {
+      const images = [
+        ...(req.files.cropImage || []),
+        ...(req.files.newPestImages || []),
+        ...(req.files.newDiseaseImages || []),
+      ].filter((image) => image && image.key);
+
+      for (const image of images) {
+        await deleteFileFromS3(image.key).catch((err) => {
+          console.error(`Failed to delete image from S3: ${image.key}`, err);
+        });
+      }
+    }
+
     console.error("Error in updateCrop:", error);
     if (error instanceof SyntaxError) {
       return res.status(400).json({ success: false, message: error.message });
@@ -604,12 +656,31 @@ export const updateCrop = async (req, res) => {
     if (error.message.includes("must have 1-5 images")) {
       return res.status(400).json({ success: false, message: error.message });
     }
+    if (error.name === "ValidationError") {
+      const errors = Object.values(error.errors).map((err) => err.message);
+      return res.status(400).json({
+        success: false,
+        message: `Validation failed: ${errors.join(", ")}`,
+      });
+    }
+    if (
+      error.message.includes("AccessDenied") ||
+      error.message.includes("AccessControlListNotSupported")
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Access denied to S3 bucket. Check bucket permissions or IAM credentials.",
+      });
+    }
     return res.status(500).json({
       success: false,
       message: "Server error while updating crop",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
+
 // Get all crops deteails
 export const getAllCrops = async (req, res) => {
   try {
@@ -754,16 +825,23 @@ export const deleteCropById = async (req, res) => {
       });
     }
 
-    // Delete associated images from Cloudinary
+    // Extract S3 keys from image URLs
+    const bucketName = process.env.S3_BUCKET_NAME;
+    const region = process.env.AWS_REGION;
+    const baseUrl = `https://${bucketName}.s3.${region}.amazonaws.com/`;
+
     const imagesToDelete = [
+      crop.cropImage, // Single crop image URL
       ...crop.pestProtection.flatMap((pest) => pest.image || []),
       ...crop.diseaseProtection.flatMap((disease) => disease.image || []),
     ].filter(Boolean);
 
+    // Delete images from S3
     for (const imageUrl of imagesToDelete) {
-      const publicId = imageUrl.split("/").pop().split(".")[0];
-      await cloudinary.uploader.destroy(publicId).catch((err) => {
-        console.error("Failed to delete image from Cloudinary:", err);
+      // Extract S3 key from URL (e.g., crops/123456-image.jpg)
+      const key = imageUrl.replace(baseUrl, "");
+      await deleteFileFromS3(key).catch((err) => {
+        console.error(`Failed to delete image from S3: ${key}`, err);
       });
     }
 
@@ -772,7 +850,7 @@ export const deleteCropById = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Crop deleted successfully",
+      message: "Crop and associated images deleted successfully",
     });
   } catch (error) {
     console.error("Error in deleteCropById:", error);
@@ -780,6 +858,13 @@ export const deleteCropById = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Invalid crop ID",
+      });
+    }
+    if (error.message.includes("AccessDenied")) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Access denied to S3 bucket. Check bucket permissions or IAM credentials.",
       });
     }
     return res.status(500).json({

@@ -1,15 +1,14 @@
-// middlewares/uploadMiddleware.js
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { uploadFileToS3 } from "../utils/s3.js"; // we'll create this
+import { uploadFileToS3, getS3Url, deleteFileFromS3 } from "../utils/s3.js";
 
 // Multer temp storage
 const tempStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadPath = "uploads/";
     if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath);
+      fs.mkdirSync(uploadPath, { recursive: true });
     }
     cb(null, uploadPath);
   },
@@ -57,10 +56,11 @@ export const uploadCropImages = (req, res, next) => {
       });
     }
 
+    let s3Uploads = [];
     try {
-      // Upload each file to S3 according to folder logic
-      const s3Uploads = await Promise.all(
-        req.files.map(async (file) => {
+      // Upload each file to S3 and get full URLs
+      s3Uploads = await Promise.all(
+        (req.files || []).map(async (file) => {
           let folder = "misc";
           if (file.fieldname === "cropImage") folder = "crops";
           else if (file.fieldname.startsWith("pestImages")) folder = "pests";
@@ -72,36 +72,76 @@ export const uploadCropImages = (req, res, next) => {
             folder = "newDiseases";
 
           const key = await uploadFileToS3(file, folder);
-          return { fieldname: file.fieldname, key };
+          const url = getS3Url(key);
+          if (!url) {
+            throw new Error(`Failed to generate S3 URL for key: ${key}`);
+          }
+          return { fieldname: file.fieldname, key, url };
         })
       );
 
-      // Group the uploaded files as before
+      // Group the uploaded files with keys and URLs
       const groupedFiles = {
         cropImage: s3Uploads
           .filter((f) => f.fieldname === "cropImage")
-          .slice(0, 1),
-        pestImages: s3Uploads.filter((f) =>
-          f.fieldname.startsWith("pestImages")
-        ),
-        diseaseImages: s3Uploads.filter((f) =>
-          f.fieldname.startsWith("diseaseImages")
-        ),
-        newPestImages: s3Uploads.filter((f) =>
-          f.fieldname.startsWith("newPestImages")
-        ),
-        newDiseaseImages: s3Uploads.filter((f) =>
-          f.fieldname.startsWith("newDiseaseImages")
-        ),
+          .map((f) => ({ fieldname: f.fieldname, key: f.key, url: f.url }))
+          .slice(0, 1), // Only one crop image
+        pestImages: s3Uploads
+          .filter((f) => f.fieldname.startsWith("pestImages"))
+          .map((f) => ({ fieldname: f.fieldname, key: f.key, url: f.url })),
+        diseaseImages: s3Uploads
+          .filter((f) => f.fieldname.startsWith("diseaseImages"))
+          .map((f) => ({ fieldname: f.fieldname, key: f.key, url: f.url })),
+        newPestImages: s3Uploads
+          .filter((f) => f.fieldname.startsWith("newPestImages"))
+          .map((f) => ({ fieldname: f.fieldname, key: f.key, url: f.url })),
+        newDiseaseImages: s3Uploads
+          .filter((f) => f.fieldname.startsWith("newDiseaseImages"))
+          .map((f) => ({ fieldname: f.fieldname, key: f.key, url: f.url })),
       };
+
+      // Validate required images for create operation
+      if (req.path.includes("/create")) {
+        if (
+          !groupedFiles.cropImage.length ||
+          !groupedFiles.pestImages.length ||
+          !groupedFiles.diseaseImages.length
+        ) {
+          // Clean up uploaded files from S3
+          for (const file of s3Uploads) {
+            if (file.key) {
+              await deleteFileFromS3(file.key).catch((err) => {
+                console.error(
+                  `Failed to delete image from S3: ${file.key}`,
+                  err
+                );
+              });
+            }
+          }
+          return res.status(400).json({
+            success: false,
+            message:
+              "Crop image, at least one pest image, and one disease image are required",
+          });
+        }
+      }
 
       req.files = groupedFiles;
       next();
     } catch (uploadErr) {
       console.error("S3 upload error:", uploadErr);
-      return res
-        .status(500)
-        .json({ success: false, message: "Failed to upload to S3" });
+      // Clean up uploaded files from S3
+      for (const file of s3Uploads) {
+        if (file.key) {
+          await deleteFileFromS3(file.key).catch((err) => {
+            console.error(`Failed to delete image from S3: ${file.key}`, err);
+          });
+        }
+      }
+      return res.status(500).json({
+        success: false,
+        message: `Failed to upload to S3: ${uploadErr.message}`,
+      });
     }
   });
 };
@@ -109,18 +149,24 @@ export const uploadCropImages = (req, res, next) => {
 // ==================== BLOG IMAGE UPLOAD ====================
 export const uploadBlogImages = (req, res, next) => {
   upload.single("blogImage")(req, res, async (err) => {
-    if (err)
+    if (err) {
       return res.status(400).json({ success: false, message: err.message });
+    }
 
     try {
       const key = await uploadFileToS3(req.file, "blogs");
-      req.file.key = key;
+      const url = getS3Url(key);
+      if (!url) {
+        throw new Error(`Failed to generate S3 URL for key: ${key}`);
+      }
+      req.file = { ...req.file, key, url };
       next();
     } catch (uploadErr) {
       console.error("S3 upload error:", uploadErr);
-      return res
-        .status(500)
-        .json({ success: false, message: "Failed to upload blog image" });
+      return res.status(500).json({
+        success: false,
+        message: `Failed to upload blog image: ${uploadErr.message}`,
+      });
     }
   });
 };

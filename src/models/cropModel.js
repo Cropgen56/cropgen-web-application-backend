@@ -14,7 +14,7 @@ const cropSchema = new Schema(
     },
     cropImage: {
       type: String,
-      required: [true, "Crop image URL is required"],
+      required: [false, "Crop image URL is required"],
       trim: true,
       validate: {
         validator: (url) => /^https?:\/\/[^\s$.?#].[^\s]*$/.test(url),
