@@ -11,7 +11,6 @@ import organizationRoutes from "./src/routes/organizationRoutes.js";
 import operationRoutes from "./src/routes/operationRoutes.js";
 import cropRoutes from "./src/routes/cropRoutes.js";
 import "./src/config/firebaseConfig.js";
-import { createToken } from "./src/utils/tokenUtility.js";
 
 dotenv.config();
 
@@ -21,44 +20,44 @@ const PORT = process.env.PORT || 5000;
 if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);
 
-  // Fork workers equal to the number of CPU cores
-  for (let i = 0; i < 2; i++) {
+  // Fork workers equal to the number of CPU cores (or at least 2)
+  for (let i = 0; i < Math.max(2, numCPUs); i++) {
     cluster.fork();
   }
 
-  // Handle worker exit and restart
+  // Restart worker if it dies
   cluster.on("exit", (worker, code, signal) => {
     console.log(
       `Worker ${worker.process.pid} died with code: ${code}, signal: ${signal}`
     );
-    console.log("Starting a new worker");
+    console.log("Starting a new worker...");
     cluster.fork();
   });
 } else {
   const app = express();
 
-  // CORS configuration
+  // Fixed CORS configuration
   const corsOptions = {
-    origin: function (origin, callback) {
-      const allowedOrigins = [
-        "https://admin.cropgenapp.com",
-        "https://www.cropgenapp.com",
-        "https://app.cropgenapp.com",
-        "https://cropydeals.cropgenapp.com",
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "https://eelabcarbon.cropgenapp.com",
-      ];
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("CORS policy violation: Origin not allowed"));
-      }
-    },
+    origin: [
+      "https://admin.cropgenapp.com",
+      "https://www.cropgenapp.com",
+      "https://app.cropgenapp.com",
+      "https://cropydeals.cropgenapp.com",
+      "http://localhost:3000",
+      "http://localhost:5173",
+      "https://eelabcarbon.cropgenapp.com",
+    ],
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   };
+
   app.use(cors(corsOptions));
 
+  // Ensure OPTIONS preflight is handled
+  app.options("*", cors(corsOptions));
+
+  // Middleware
   app.use(express.json());
 
   // Routes
@@ -69,7 +68,7 @@ if (cluster.isPrimary) {
   app.use("/v1/api/operation", operationRoutes);
   app.use("/v1/api/crop", cropRoutes);
 
-  // Start Server and Sync Database for each
+  // Start server
   const startServer = async () => {
     try {
       await connectToDatabase();
