@@ -1,19 +1,21 @@
+// middlewares/uploadMiddleware.js
 import multer from "multer";
-import { CloudinaryStorage } from "multer-storage-cloudinary";
-import cloudinary from "../config/cloudinaryConfig.js";
 import path from "path";
+import fs from "fs";
+import { uploadFileToS3 } from "../utils/s3.js"; // we'll create this
 
-// Configure Cloudinary storage for crops
-const cropStorage = new CloudinaryStorage({
-  cloudinary,
-  params: async (req, file) => ({
-    folder: "farm_images",
-    allowed_formats: ["jpg", "png", "jpeg"],
-    public_id: `crop_${Date.now()}_${file.originalname}`,
-    transformation: [
-      { width: 800, height: 800, crop: "limit", quality: "auto" },
-    ],
-  }),
+// Multer temp storage
+const tempStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = "uploads/";
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath);
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
 });
 
 // File filter for image validation
@@ -27,16 +29,15 @@ const fileFilter = (req, file, cb) => {
   cb(new Error("Only JPEG and PNG images are allowed"));
 };
 
-// Initialize multer for crops
-const cropUpload = multer({
-  storage: cropStorage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB limit
+const upload = multer({
+  storage: tempStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
   fileFilter,
 });
 
-// Middleware for crop image uploads
+// ==================== CROP IMAGE UPLOAD ====================
 export const uploadCropImages = (req, res, next) => {
-  cropUpload.any()(req, res, (err) => {
+  upload.any()(req, res, async (err) => {
     if (err instanceof multer.MulterError) {
       if (err.code === "LIMIT_FILE_SIZE") {
         return res.status(400).json({
@@ -52,35 +53,76 @@ export const uploadCropImages = (req, res, next) => {
       console.error("Upload error:", err);
       return res.status(400).json({
         success: false,
-        message: "Error uploading images to Cloudinary",
+        message: "Error uploading images",
       });
     }
 
-    if (req.files) {
+    try {
+      // Upload each file to S3 according to folder logic
+      const s3Uploads = await Promise.all(
+        req.files.map(async (file) => {
+          let folder = "misc";
+          if (file.fieldname === "cropImage") folder = "crops";
+          else if (file.fieldname.startsWith("pestImages")) folder = "pests";
+          else if (file.fieldname.startsWith("diseaseImages"))
+            folder = "diseases";
+          else if (file.fieldname.startsWith("newPestImages"))
+            folder = "newPests";
+          else if (file.fieldname.startsWith("newDiseaseImages"))
+            folder = "newDiseases";
+
+          const key = await uploadFileToS3(file, folder);
+          return { fieldname: file.fieldname, key };
+        })
+      );
+
+      // Group the uploaded files as before
       const groupedFiles = {
-        cropImage: req.files
-          .filter((file) => file.fieldname === "cropImage")
+        cropImage: s3Uploads
+          .filter((f) => f.fieldname === "cropImage")
           .slice(0, 1),
-        pestImages: req.files.filter((file) =>
-          file.fieldname.startsWith("pestImages")
+        pestImages: s3Uploads.filter((f) =>
+          f.fieldname.startsWith("pestImages")
         ),
-        diseaseImages: req.files.filter((file) =>
-          file.fieldname.startsWith("diseaseImages")
+        diseaseImages: s3Uploads.filter((f) =>
+          f.fieldname.startsWith("diseaseImages")
         ),
-        newPestImages: req.files.filter((file) =>
-          file.fieldname.startsWith("newPestImages")
+        newPestImages: s3Uploads.filter((f) =>
+          f.fieldname.startsWith("newPestImages")
         ),
-        newDiseaseImages: req.files.filter((file) =>
-          file.fieldname.startsWith("newDiseaseImages")
+        newDiseaseImages: s3Uploads.filter((f) =>
+          f.fieldname.startsWith("newDiseaseImages")
         ),
       };
+
       req.files = groupedFiles;
+      next();
+    } catch (uploadErr) {
+      console.error("S3 upload error:", uploadErr);
+      return res
+        .status(500)
+        .json({ success: false, message: "Failed to upload to S3" });
     }
-    next();
   });
 };
 
-// Middleware for blog image upload (unchanged)
-export const uploadBlogImages = cropUpload.single("blogImage");
+// ==================== BLOG IMAGE UPLOAD ====================
+export const uploadBlogImages = (req, res, next) => {
+  upload.single("blogImage")(req, res, async (err) => {
+    if (err)
+      return res.status(400).json({ success: false, message: err.message });
+
+    try {
+      const key = await uploadFileToS3(req.file, "blogs");
+      req.file.key = key;
+      next();
+    } catch (uploadErr) {
+      console.error("S3 upload error:", uploadErr);
+      return res
+        .status(500)
+        .json({ success: false, message: "Failed to upload blog image" });
+    }
+  });
+};
 
 export default { uploadCropImages, uploadBlogImages };

@@ -1,7 +1,6 @@
 import Crop from "../models/cropModel.js";
 import cloudinary from "../config/cloudinaryConfig.js";
 import multer from "multer";
-import { CloudinaryStorage } from "multer-storage-cloudinary";
 
 export const createCrop = async (req, res) => {
   try {

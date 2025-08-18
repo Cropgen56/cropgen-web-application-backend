@@ -11,6 +11,8 @@
   "author": "crop gen team",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.864.0",
+    "@aws-sdk/s3-request-presigner": "^3.864.0",
     "@google/earthengine": "^1.4.6",
     "axios": "^1.7.9",
     "bcrypt": "^5.1.1",
