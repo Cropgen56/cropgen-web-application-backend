@@ -12,6 +12,7 @@ yarn-error.log*
 # Environment variables
 .env
 src/config/*.json
+ecosystem.config.cjs
 
 # Build outputs
 dist/
