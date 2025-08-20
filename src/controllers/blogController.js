@@ -106,3 +106,19 @@ export const deleteBlog = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// Upload blog image to the s3 and return url
+
+export const uploadBlogImage = async (req, res) => {
+  if (!req.file || !req.file.url) {
+    return res.status(400).json({
+      success: false,
+      message: "Image upload failed",
+    });
+  }
+
+  return res.json({
+    success: true,
+    url: req.file.url,
+  });
+};

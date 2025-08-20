@@ -153,6 +153,7 @@ export const uploadBlogImages = (req, res, next) => {
       return res.status(400).json({ success: false, message: err.message });
     }
 
+    console.log("DEBUG req.file:", req.file);
     try {
       const key = await uploadFileToS3(req.file, "blogs");
       const url = getS3Url(key);
