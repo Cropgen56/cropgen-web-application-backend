@@ -17,7 +17,9 @@ import {
   signupWithFirebase,
   isUserExist,
   loginWithPhone,
+  forgotPassword,
   auth,
+  resetPassword,
 } from "../controllers/authController.js";
 
 import {
@@ -34,6 +36,10 @@ router.post("/google", googleLogin);
 router.post("/google-mobile", googleLoginMobile);
 
 router.post("/signin", signin);
+
+// forgot passwrod controller
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 
 // web login api
 router.post("/authenticate", auth);

@@ -1,10 +1,10 @@
 import jwt from "jsonwebtoken";
 import User from "../models/usersModel.js";
-import { getUserDataFromGoogle } from "../utils/getUserData.js";
 import { OAuth2Client } from "google-auth-library";
 import Organization from "../models/organizationModel.js";
 import nodemailer from "nodemailer";
 import admin from "firebase-admin";
+import crypto from "crypto";
 
 import { loginOtpEmail, signupOtpEmail, welcomeEmail } from "../utils/email.js";
 
@@ -13,6 +13,15 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const clientMobile = new OAuth2Client(process.env.MOBILE_GOOGLE_CLIENT_ID);
+
+// Configure nodemailer transport
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
 // Google login controller
 export const googleLogin = async (req, res) => {
@@ -356,6 +365,80 @@ export const signin = async (req, res) => {
   }
 };
 
+// Forgot Password Handler
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Check if user exists
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Generate reset token (store directly without hashing)
+    const resetToken = crypto.randomBytes(32).toString("hex");
+
+    // Set token and expiry on user
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = Date.now() + 3600000;
+    await user.save();
+
+    // Create reset URL
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+
+    // Email configuration
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Password Reset Request",
+      html: `
+        <h2>Password Reset</h2>
+        <p>You requested a password reset. Click the link below to reset your password:</p>
+        <a href="${resetUrl}">Reset Password</a>
+        <p>This link will expire in 1 hour.</p>
+        <p>If you didn't request this, please ignore this email.</p>
+      `,
+    };
+
+    // Send email
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({ message: "Password reset email sent" });
+  } catch (error) {
+    console.error("Error in forgotPassword:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Reset Password Handler
+export const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    // Find user with valid token and non-expired
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid or expired token" });
+    }
+
+    // Directly save the new password (no hashing)
+    user.password = newPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.status(200).json({ message: "Password reset successful" });
+  } catch (error) {
+    console.error("Error in resetPassword:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 // Fetch all users from the database
 export const getAllUsers = async (req, res) => {
   try {
@@ -610,42 +693,6 @@ export const deleteUserByEmail = async (req, res) => {
   }
 };
 
-// Update a user by ID
-// export const updateUserById = async (req, res) => {
-//   const { id } = req.params;
-//   const updateData = req.body;
-
-//   try {
-//     const user = await User.findByIdAndUpdate(id, updateData, {
-//       new: true,
-//       runValidators: true,
-//     }).populate({
-//       path: "organization",
-//       select: "organizationCode",
-//     });
-
-//     if (!user) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "User not found",
-//       });
-//     }
-
-//     res.status(200).json({
-//       success: true,
-//       message: "User updated successfully",
-//       user,
-//     });
-//   } catch (error) {
-//     console.error("Error updating user:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Failed to update user",
-//       error: error.message,
-//     });
-//   }
-// };
-
 export const updateUserById = async (req, res) => {
   const { id } = req.params;
   let updateData = req.body;
@@ -698,6 +745,7 @@ export const updateUserById = async (req, res) => {
     });
   }
 };
+
 // mobile application api controller
 export const checkUser = async (req, res) => {
   const { phone, organizationCode } = req.body;
@@ -905,61 +953,6 @@ export const signupWithFirebase = async (req, res) => {
   }
 };
 
-// mobile singup api controller
-// export const loginWithPhone = async (req, res) => {
-//   const { phone } = req.body;
-
-//   try {
-//     // Validate phone format
-//     const phoneRegex = /^\+91\d{10}$/;
-//     if (!phone || !phoneRegex.test(phone)) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Phone number must be in +91XXXXXXXXXX format",
-//         data: null,
-//       });
-//     }
-
-//     // Check if user exists
-//     const user = await User.findOne({ phone });
-
-//     if (!user) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "User not found",
-//         data: null,
-//       });
-//     }
-
-//     // Generate JWT and send to the client for login
-//     const payload = {
-//       id: user._id,
-//       firstName: user.firstName,
-//       lastName: user.lastName,
-//       email: user.email,
-//       role: user.role,
-//       organization: user.organization,
-//     };
-
-//     const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
-//       expiresIn: "15d",
-//     });
-
-//     return res.status(200).json({
-//       success: true,
-//       message: "User Login successful",
-//       data: { accessToken, user },
-//     });
-//   } catch (error) {
-//     console.error("Login Error:", error);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Server error",
-//       data: null,
-//     });
-//   }
-// };
-
 export const loginWithPhone = async (req, res) => {
   const { phone } = req.body;
 
@@ -1033,15 +1026,6 @@ export const loginWithPhone = async (req, res) => {
     });
   }
 };
-
-// Configure nodemailer transport
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
 
 // Generate 4-digit OTP
 const generateOTP = () => {
