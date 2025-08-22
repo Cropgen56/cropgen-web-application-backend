@@ -20,6 +20,7 @@ import {
   forgotPassword,
   auth,
   resetPassword,
+  getUser,
 } from "../controllers/authController.js";
 
 import {
@@ -50,7 +51,16 @@ router.get(
   authorizeRoles("admin", "developer", "client"),
   getAllUsers
 );
-router.get("/user", isAuthenticated, getUserById);
+
+// get the user by id with the help of the token
+router.get("/user", isAuthenticated, getUser);
+router.get(
+  "/user/:id",
+  isAuthenticated,
+  authorizeRoles("admin", "developer", "client"),
+  getUserById
+);
+
 router.delete(
   "/delete-user/:id",
   isAuthenticated,
