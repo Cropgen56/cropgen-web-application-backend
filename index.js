@@ -19,7 +19,7 @@ const PORT = process.env.PORT || 5000;
 const corsOptions = {
   origin: [
     "https://admin.cropgenapp.com",
-    "https://cropgenapp.com",
+    "https://www.cropgenapp.com",
     "https://app.cropgenapp.com",
     "https://cropydeals.cropgenapp.com",
     "http://localhost:3000",
