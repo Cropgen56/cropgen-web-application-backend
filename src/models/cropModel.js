@@ -17,8 +17,8 @@ const cropSchema = new Schema(
       required: [false, "Crop image URL is required"],
       trim: true,
       validate: {
-        validator: (url) => /^https?:\/\/[^\s$.?#].[^\s]*$/.test(url),
-        message: "Invalid crop image URL format",
+        validator: (url) => /^https?:\/\//.test(url),
+        message: "Invalid image URL format",
       },
     },
     generalInfo: {
@@ -221,7 +221,7 @@ const cropSchema = new Schema(
             required: [true, "Pest image URL is required"],
             trim: true,
             validate: {
-              validator: (url) => /^https?:\/\/[^\s$.?#].[^\s]*$/.test(url),
+              validator: (url) => /^https?:\/\//.test(url),
               message: "Invalid image URL format",
             },
           },
@@ -280,7 +280,7 @@ const cropSchema = new Schema(
             required: [true, "Disease image URL is required"],
             trim: true,
             validate: {
-              validator: (url) => /^https?:\/\/[^\s$.?#].[^\s]*$/.test(url),
+              validator: (url) => /^https?:\/\//.test(url),
               message: "Invalid image URL format",
             },
           },

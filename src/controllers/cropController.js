@@ -2,197 +2,53 @@ import Crop from "../models/cropModel.js";
 import cloudinary from "../config/cloudinaryConfig.js";
 import multer from "multer";
 import { getS3Url, deleteFileFromS3 } from "../utils/s3.js";
+import { cropValidationSchema } from "../validation/cropValidationSchema.js";
 
 // create the crop information
 export const createCrop = async (req, res) => {
   try {
-    const {
-      cropName,
-      generalInfo,
-      climate,
-      soil,
-      variety,
-      nursery,
-      sowing,
-      fertilizer,
-      landPreparation,
-      seed,
-      pestProtection,
-      diseaseProtection,
-      weedControl,
-      irrigation,
-      harvesting,
-      postHarvesting,
-    } = req.body;
-
-    // Parse JSON fields if sent as strings
+    // 🔹 Helper to parse JSON strings safely
     const parseIfString = (data, fieldName) => {
+      if (typeof data !== "string") return data;
       try {
-        return typeof data === "string" ? JSON.parse(data) : data;
+        return JSON.parse(data);
       } catch (err) {
-        throw new SyntaxError(
-          `Invalid JSON format in ${fieldName}: ${err.message}`
-        );
+        throw new SyntaxError(`Invalid JSON format in ${fieldName}`);
       }
     };
 
-    const parsedClimate = parseIfString(climate, "climate");
-    const parsedVariety = parseIfString(variety, "variety");
-    const parsedNursery = parseIfString(nursery, "nursery");
-    const parsedSowing = parseIfString(sowing, "sowing");
-    const parsedFertilizer = parseIfString(fertilizer, "fertilizer");
-    const parsedSeed = parseIfString(seed, "seed");
-    const parsedPestProtection = parseIfString(
-      pestProtection,
+    // 🔹 Parse nested fields (if sent as JSON string)
+    req.body.climate = parseIfString(req.body.climate, "climate");
+    req.body.variety = parseIfString(req.body.variety, "variety");
+    req.body.nursery = parseIfString(req.body.nursery, "nursery");
+    req.body.sowing = parseIfString(req.body.sowing, "sowing");
+    req.body.fertilizer = parseIfString(req.body.fertilizer, "fertilizer");
+    req.body.seed = parseIfString(req.body.seed, "seed");
+    req.body.pestProtection = parseIfString(
+      req.body.pestProtection,
       "pestProtection"
     );
-    const parsedDiseaseProtection = parseIfString(
-      diseaseProtection,
+    req.body.diseaseProtection = parseIfString(
+      req.body.diseaseProtection,
       "diseaseProtection"
     );
 
-    // Basic validation for required top-level fields
-    const requiredFields = {
-      cropName,
-      generalInfo,
-      climate: parsedClimate,
-      soil,
-      variety: parsedVariety,
-      sowing: parsedSowing,
-      fertilizer: parsedFertilizer,
-      landPreparation,
-      seed: parsedSeed,
-      pestProtection: parsedPestProtection,
-      diseaseProtection: parsedDiseaseProtection,
-      weedControl,
-      irrigation,
-      harvesting,
-      postHarvesting,
-    };
-
-    const missingFields = Object.entries(requiredFields)
-      .filter(([_, value]) => !value)
-      .map(([key]) => key);
-
-    if (missingFields.length > 0) {
+    // 🔹 Validate with Joi
+    const { error, value } = cropValidationSchema.validate(req.body, {
+      abortEarly: false,
+    });
+    if (error) {
       return res.status(400).json({
         success: false,
-        message: `Missing required fields: ${missingFields.join(", ")}`,
+        message: error.details.map((d) => d.message).join(", "),
       });
     }
 
-    // Validate nested required fields
-    const nestedMissingFields = [];
-    if (!parsedClimate.temperature)
-      nestedMissingFields.push("climate.temperature");
-    if (!parsedClimate.sowingTemperature)
-      nestedMissingFields.push("climate.sowingTemperature");
-    if (!parsedClimate.rainfall) nestedMissingFields.push("climate.rainfall");
-    if (!parsedClimate.harvestingTemperature)
-      nestedMissingFields.push("climate.harvestingTemperature");
+    // 🔹 Ensure required images
     if (
-      !Array.isArray(parsedVariety) ||
-      !parsedVariety.every(
-        (v) =>
-          v.name && v.description && v.plantHeight && v.maturityDays && v.yield
-      )
-    ) {
-      nestedMissingFields.push(
-        "variety (must include name, description, plantHeight, maturityDays, yield)"
-      );
-    }
-    if (!parsedSowing.time) nestedMissingFields.push("sowing.time");
-    if (!parsedSowing.spacing) nestedMissingFields.push("sowing.spacing");
-    if (!parsedSowing.method) nestedMissingFields.push("sowing.method");
-    if (!parsedSowing.depth) nestedMissingFields.push("sowing.depth");
-    if (!parsedSowing.seedRate) nestedMissingFields.push("sowing.seedRate");
-    if (!parsedFertilizer.nutrients?.nitrogen)
-      nestedMissingFields.push("fertilizer.nutrients.nitrogen");
-    if (!parsedFertilizer.nutrients?.phosphorus)
-      nestedMissingFields.push("fertilizer.nutrients.phosphorus");
-    if (!parsedFertilizer.nutrients?.potash)
-      nestedMissingFields.push("fertilizer.nutrients.potash");
-    if (
-      !parsedFertilizer.fertilizers?.length ||
-      !parsedFertilizer.fertilizers.every((f) => f.name && f.dosage)
-    ) {
-      nestedMissingFields.push(
-        "fertilizer.fertilizers (must include name and dosage)"
-      );
-    }
-    if (!parsedFertilizer.applicationMethods)
-      nestedMissingFields.push("fertilizer.applicationMethods");
-    if (!parsedSeed.seedRate) nestedMissingFields.push("seed.seedRate");
-    if (!parsedSeed.seedTreatment?.method)
-      nestedMissingFields.push("seed.seedTreatment.method");
-
-    // Validate pestProtection structure
-    if (
-      !Array.isArray(parsedPestProtection) ||
-      !parsedPestProtection.length ||
-      !parsedPestProtection.every(
-        (pp) =>
-          pp.pest &&
-          pp.symptoms &&
-          pp.controlMethods &&
-          pp.controlMethods.organic &&
-          pp.controlMethods.inorganic &&
-          Array.isArray(pp.controlMethods.organic.preventive) &&
-          pp.controlMethods.organic.preventive.length > 0 &&
-          Array.isArray(pp.controlMethods.organic.curative) &&
-          pp.controlMethods.organic.curative.length > 0 &&
-          Array.isArray(pp.controlMethods.inorganic.preventive) &&
-          pp.controlMethods.inorganic.preventive.length > 0 &&
-          Array.isArray(pp.controlMethods.inorganic.curative) &&
-          pp.controlMethods.inorganic.curative.length > 0
-      )
-    ) {
-      nestedMissingFields.push(
-        "pestProtection (must be a non-empty array with pest, symptoms, and non-empty controlMethods arrays)"
-      );
-    }
-
-    // Validate diseaseProtection structure
-    if (
-      !Array.isArray(parsedDiseaseProtection) ||
-      !parsedDiseaseProtection.length ||
-      !parsedDiseaseProtection.every(
-        (dp) =>
-          dp.disease &&
-          dp.symptoms &&
-          dp.controlMethods &&
-          dp.controlMethods.organic &&
-          dp.controlMethods.inorganic &&
-          Array.isArray(dp.controlMethods.organic.preventive) &&
-          dp.controlMethods.organic.preventive.length > 0 &&
-          Array.isArray(dp.controlMethods.organic.curative) &&
-          dp.controlMethods.organic.curative.length > 0 &&
-          Array.isArray(dp.controlMethods.inorganic.preventive) &&
-          dp.controlMethods.inorganic.preventive.length > 0 &&
-          Array.isArray(dp.controlMethods.inorganic.curative) &&
-          dp.controlMethods.inorganic.curative.length > 0
-      )
-    ) {
-      nestedMissingFields.push(
-        "diseaseProtection (must be a non-empty array with disease, symptoms, and non-empty controlMethods arrays)"
-      );
-    }
-
-    if (nestedMissingFields.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `Missing or invalid required fields: ${nestedMissingFields.join(
-          ", "
-        )}`,
-      });
-    }
-
-    // Validate image uploads
-    if (
-      !req.files ||
-      !req.files.cropImage?.length ||
-      !req.files.pestImages?.length ||
-      !req.files.diseaseImages?.length
+      !req.files?.cropImage?.length ||
+      !req.files?.pestImages?.length ||
+      !req.files?.diseaseImages?.length
     ) {
       return res.status(400).json({
         success: false,
@@ -201,122 +57,30 @@ export const createCrop = async (req, res) => {
       });
     }
 
-    // Process crop image (convert S3 key to full URL)
-    const cropImage = req.files.cropImage[0]?.key
-      ? getS3Url(req.files.cropImage[0].key)
-      : null;
-    if (!cropImage) {
-      return res.status(400).json({
-        success: false,
-        message: "Crop image is required",
-      });
-    }
+    // 🔹 Map S3 image URLs
+    const cropImage = req.files.cropImage[0].url;
 
-    // Group pest images by pest index (use S3 keys converted to URLs)
-    const pestImagesGrouped = {};
-    req.files.pestImages.forEach((file) => {
-      const match = file.fieldname.match(/pestImages\[(\d+)\]\[\d+\]/);
-      if (match) {
-        const pestIndex = parseInt(match[1], 10);
-        if (!pestImagesGrouped[pestIndex]) {
-          pestImagesGrouped[pestIndex] = [];
-        }
-        pestImagesGrouped[pestIndex].push(getS3Url(file.key));
-      }
-    });
-
-    // Group disease images by disease index (use S3 keys converted to URLs)
-    const diseaseImagesGrouped = {};
-    req.files.diseaseImages.forEach((file) => {
-      const match = file.fieldname.match(/diseaseImages\[(\d+)\]\[\d+\]/);
-      if (match) {
-        const diseaseIndex = parseInt(match[1], 10);
-        if (!diseaseImagesGrouped[diseaseIndex]) {
-          diseaseImagesGrouped[diseaseIndex] = [];
-        }
-        diseaseImagesGrouped[diseaseIndex].push(getS3Url(file.key));
-      }
-    });
-
-    // Validate pest images
-    for (let i = 0; i < parsedPestProtection.length; i++) {
-      const images = pestImagesGrouped[i] || [];
-      if (images.length < 1) {
-        return res.status(400).json({
-          success: false,
-          message: `Missing image for pest at index ${i}`,
-        });
-      }
-      if (images.length > 5) {
-        return res.status(400).json({
-          success: false,
-          message: `Too many images for pest at index ${i}: maximum 5 allowed`,
-        });
-      }
-    }
-
-    // Validate disease images
-    for (let i = 0; i < parsedDiseaseProtection.length; i++) {
-      const images = diseaseImagesGrouped[i] || [];
-      if (images.length < 1) {
-        return res.status(400).json({
-          success: false,
-          message: `Missing image for disease at index ${i}`,
-        });
-      }
-      if (images.length > 5) {
-        return res.status(400).json({
-          success: false,
-          message: `Too many images for disease at index ${i}: maximum 5 allowed`,
-        });
-      }
-    }
-
-    // Check for invalid indices
-    const pestIndices = Object.keys(pestImagesGrouped).map(Number);
-    const invalidPestIndices = pestIndices.filter(
-      (index) => index >= parsedPestProtection.length || index < 0
-    );
-    if (invalidPestIndices.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `Invalid pest indices in images: ${invalidPestIndices.join(
-          ", "
-        )}`,
-      });
-    }
-
-    const diseaseIndices = Object.keys(diseaseImagesGrouped).map(Number);
-    const invalidDiseaseIndices = diseaseIndices.filter(
-      (index) => index >= parsedDiseaseProtection.length || index < 0
-    );
-    if (invalidDiseaseIndices.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `Invalid disease indices in images: ${invalidDiseaseIndices.join(
-          ", "
-        )}`,
-      });
-    }
-
-    // Assign grouped images to pest and disease entries (using S3 URLs)
-    const pestProtectionWithImages = parsedPestProtection.map(
+    const pestProtectionWithImages = value.pestProtection.map(
       (pest, index) => ({
         ...pest,
-        image: pestImagesGrouped[index] || [],
+        image: req.files.pestImages
+          .filter((f) => f.fieldname.includes(`[${index}]`))
+          .map((f) => f.url),
       })
     );
 
-    const diseaseProtectionWithImages = parsedDiseaseProtection.map(
+    const diseaseProtectionWithImages = value.diseaseProtection.map(
       (disease, index) => ({
         ...disease,
-        image: diseaseImagesGrouped[index] || [],
+        image: req.files.diseaseImages
+          .filter((f) => f.fieldname.includes(`[${index}]`))
+          .map((f) => f.url),
       })
     );
 
-    // Check for duplicate crop name
+    // 🔹 Prevent duplicate crop
     const existingCrop = await Crop.findOne({
-      cropName: cropName.toLowerCase(),
+      cropName: value.cropName.toLowerCase(),
     });
     if (existingCrop) {
       return res.status(409).json({
@@ -325,102 +89,45 @@ export const createCrop = async (req, res) => {
       });
     }
 
-    // Create new crop document
+    // 🔹 Save crop
     const crop = new Crop({
-      cropName: cropName.toLowerCase(),
+      ...value,
+      cropName: value.cropName.toLowerCase(),
       cropImage,
-      generalInfo,
-      climate: parsedClimate,
-      soil,
-      variety: parsedVariety,
-      nursery: parsedNursery,
-      sowing: parsedSowing,
-      fertilizer: parsedFertilizer,
-      landPreparation,
-      seed: parsedSeed,
       pestProtection: pestProtectionWithImages,
       diseaseProtection: diseaseProtectionWithImages,
-      weedControl,
-      irrigation,
-      harvesting,
-      postHarvesting,
     });
 
-    // Save crop to database
     const savedCrop = await crop.save();
 
     return res.status(201).json({
       success: true,
-      data: {
-        ...savedCrop.toJSON(),
-        varietyCount: savedCrop.varietyCount,
-      },
+      data: savedCrop,
       message: "Crop created successfully",
     });
   } catch (error) {
-    // Clean up uploaded images on S3 if error occurs
+    // 🔹 Rollback uploaded images on error
     if (req.files) {
-      const images = [
+      const allFiles = [
         ...(req.files.cropImage || []),
         ...(req.files.pestImages || []),
         ...(req.files.diseaseImages || []),
-      ].filter((image) => image && image.key);
-
-      for (const image of images) {
-        await deleteFileFromS3(image.key).catch((err) => {
-          console.error("Failed to delete image from S3:", err);
-        });
+      ];
+      for (const f of allFiles) {
+        await deleteFileFromS3(f.key).catch(() =>
+          console.error("Failed to delete S3 file", f.key)
+        );
       }
     }
 
-    // Handle specific errors
-    if (error instanceof multer.MulterError) {
-      return res.status(400).json({
-        success: false,
-        message: `Multer error: ${error.message}`,
-      });
-    }
-    if (error.name === "ValidationError") {
-      const errors = Object.values(error.errors).map((err) => err.message);
-      return res.status(400).json({
-        success: false,
-        message: `Validation failed: ${errors.join(", ")}`,
-      });
-    }
-    if (error.code === 11000) {
-      return res.status(409).json({
-        success: false,
-        message: "A crop with this name already exists",
-      });
-    }
-    if (error.message.includes("A variety of this crop already exists")) {
-      return res.status(409).json({
-        success: false,
-        message: error.message,
-      });
-    }
-    if (
-      error.message.includes("Only JPEG and PNG images are allowed") ||
-      error.code === "LIMIT_FILE_SIZE"
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: error.message,
-      });
-    }
-    if (error instanceof SyntaxError && error.message.includes("JSON")) {
-      return res.status(400).json({
-        success: false,
-        message: error.message,
-      });
+    if (error instanceof SyntaxError) {
+      return res.status(400).json({ success: false, message: error.message });
     }
 
     console.error("Error in createCrop:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Server error while creating crop",
-      error: process.env.NODE_ENV === "development" ? error.stack : undefined,
-    });
+    return res
+      .status(500)
+      .json({ success: false, message: "Server error while creating crop" });
   }
 };
 
