@@ -457,7 +457,9 @@ export const verifyOtp = async (req, res) => {
 
     return res.json({
       success: true,
-      message: isExisting ? "Signed in" : "OTP verified",
+      message: isExisting
+        ? "signed in successfully"
+        : "OTP verified successfully",
       accessToken: accessToken,
       role: user.role,
       user: isExisting
@@ -650,7 +652,7 @@ export const completeProfile = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Registered & signed in",
+      message: "Registered & signed in successfully.",
       accessToken: newAccessToken,
       role: user.role,
       user: {
