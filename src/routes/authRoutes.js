@@ -43,6 +43,7 @@ router.post("/google", googleLogin);
 // login with google mobile application
 router.post("/google-mobile", googleLoginMobile);
 
+// admin panel login route
 router.post("/signin", signin);
 
 // forgot password controller

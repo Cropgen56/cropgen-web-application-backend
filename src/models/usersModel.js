@@ -20,6 +20,10 @@ const userSchema = new Schema(
       unique: true,
       sparse: true,
     },
+    password: {
+      type: String,
+      unique: true,
+    },
     phone: {
       type: String,
       validate: {
@@ -73,10 +77,9 @@ const userSchema = new Schema(
       type: Date,
       default: null,
     },
-    otpAttemptCount: { type: Number, default: 0 }, // verify attempts
-    lastOtpSentAt: { type: Date, default: null }, // throttle resend
+    otpAttemptCount: { type: Number, default: 0 },
+    lastOtpSentAt: { type: Date, default: null },
     lastLoginAt: { type: Date, default: null },
-    // add to User schema
     refreshTokenId: { type: String, default: null },
     firebaseUid: {
       type: String,
