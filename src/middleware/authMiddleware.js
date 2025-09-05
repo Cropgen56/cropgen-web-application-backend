@@ -46,4 +46,18 @@ const checkApiKey = (req, res, next) => {
   next();
 };
 
-export { isAuthenticated, authorizeRoles, checkApiKey };
+const requireAuth = (req, res, next) => {
+  try {
+    const hdr = req.headers.authorization || "";
+    const token = hdr.startsWith("Bearer ") ? hdr.slice(7) : null;
+
+    if (!token)
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    const payload = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+    req.auth = payload; // { id, email, ... }
+    next();
+  } catch {
+    return res.status(401).json({ success: false, message: "Invalid token" });
+  }
+};
+export { isAuthenticated, authorizeRoles, checkApiKey, requireAuth };

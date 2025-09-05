@@ -9,6 +9,7 @@ import organizationRoutes from "./src/routes/organizationRoutes.js";
 import operationRoutes from "./src/routes/operationRoutes.js";
 import cropRoutes from "./src/routes/cropRoutes.js";
 import "./src/config/firebaseConfig.js";
+import cookieParser from "cookie-parser";
 
 dotenv.config();
 
@@ -33,6 +34,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 app.use(express.json());
+app.use(cookieParser());
 
 // Routes
 app.use("/v1/api/auth", authRoutes);

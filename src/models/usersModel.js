@@ -30,9 +30,6 @@ const userSchema = new Schema(
         message: (props) => `${props.value} is not a valid phone number!`,
       },
     },
-    password: {
-      type: String,
-    },
     role: {
       type: String,
       enum: ["farmer", "admin", "developer", "client"],
@@ -76,6 +73,11 @@ const userSchema = new Schema(
       type: Date,
       default: null,
     },
+    otpAttemptCount: { type: Number, default: 0 }, // verify attempts
+    lastOtpSentAt: { type: Date, default: null }, // throttle resend
+    lastLoginAt: { type: Date, default: null },
+    // add to User schema
+    refreshTokenId: { type: String, default: null },
     firebaseUid: {
       type: String,
       default: null,
