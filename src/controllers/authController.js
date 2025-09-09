@@ -619,7 +619,18 @@ export const completeProfile = async (req, res) => {
         .json({ success: false, message: "Profile already completed." });
     }
 
-    const { org, orgCode } = await resolveOrganizationByCode(organizationCode);
+    let org, orgCode;
+    try {
+      ({ org, orgCode } = await resolveOrganizationByCode(organizationCode));
+    } catch (err) {
+      if (err.status === 404) {
+        return res.status(404).json({
+          success: false,
+          message: `Organization '${organizationCode}' not found.`,
+        });
+      }
+      throw err;
+    }
 
     user.firstName = firstName;
     user.lastName = lastName;
