@@ -20,14 +20,20 @@ export const compare = (s, h) => bcrypt.compare(s, h);
 
 export const genOtp = () => String(Math.floor(100000 + Math.random() * 900000));
 
-export const resolveOrganizationByCode = async (codeRaw = "CROPGEN") => {
-  const code = String(codeRaw).toUpperCase().trim();
+export const resolveOrganizationByCode = async (codeRaw) => {
+  const code =
+    codeRaw && String(codeRaw).trim() !== ""
+      ? String(codeRaw).toUpperCase().trim()
+      : "CROPGEN";
+
   const org = await Organization.findOne({ organizationCode: code });
+
   if (!org) {
     const err = new Error(`Organization '${code}' not found.`);
     err.status = 404;
     throw err;
   }
+
   return { org, orgCode: code };
 };
 
