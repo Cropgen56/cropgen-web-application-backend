@@ -8,10 +8,6 @@ import {
   deleteUserById,
   updateUserById,
   deleteUserByEmail,
-  // signupRequest,
-  // loginRequest,
-  // verifyLoginOTP,
-  // verifySignupOTP,
   googleLoginMobile,
   checkUser,
   signupWithFirebase,
@@ -82,6 +78,7 @@ router.patch(
   authorizeRoles("admin", "developer", "client", "farmer"),
   updateUserById
 );
+
 // cropydeals auth routes
 router.post("/register-user", registerUser);
 
@@ -90,12 +87,6 @@ router.post("/signup/check-user", checkUser);
 router.post("/signup/mobile", signupWithFirebase);
 router.post("/login/is-exist", isUserExist);
 router.post("/login/mobile", loginWithPhone);
-
-// apis for nodemailer
-// router.post("/signup/request", signupRequest);
-// router.post("/login/request", loginRequest);
-// router.post("/signup/verify", verifySignupOTP);
-// router.post("/login/verify", verifyLoginOTP);
 
 // web application login and the singup routes
 router.post("/otp", requestOtp);

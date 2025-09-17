@@ -2,19 +2,6 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import Organization from "../models/organizationModel.js";
 
-export const signJwt = (user, extra = {}) =>
-  jwt.sign(
-    {
-      id: user._id,
-      email: user.email,
-      role: user.role,
-      organization: user.organization,
-      ...extra,
-    },
-    process.env.JWT_SECRET,
-    { expiresIn: "15d" }
-  );
-
 export const hash = (s) => bcrypt.hash(s, 10);
 export const compare = (s, h) => bcrypt.compare(s, h);
 
