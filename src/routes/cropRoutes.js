@@ -14,7 +14,7 @@ const router = express.Router();
 
 router.post("/create", uploadCropImages, createCrop);
 router.get("/get-all", getAllCrops);
-router.get("/get-crop-list", isAuthenticated, getCropNamesAndImages);
+router.get("/get-crop-list", getCropNamesAndImages);
 router.get("/get/:id", getCropById);
 router.delete("/delete/:id", deleteCropById);
 router.patch("/update/:id", uploadCropImages, updateCrop);
