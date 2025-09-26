@@ -8,6 +8,7 @@ import blogRoutes from "./src/routes/blogRoutes.js";
 import organizationRoutes from "./src/routes/organizationRoutes.js";
 import operationRoutes from "./src/routes/operationRoutes.js";
 import cropRoutes from "./src/routes/cropRoutes.js";
+import emailRoutes from "./src/routes/emailRoutes.js";
 import "./src/config/firebaseConfig.js";
 import cookieParser from "cookie-parser";
 
@@ -43,6 +44,7 @@ app.use("/v1/api/blog", blogRoutes);
 app.use("/v1/api/org", organizationRoutes);
 app.use("/v1/api/operation", operationRoutes);
 app.use("/v1/api/crop", cropRoutes);
+app.use("/v1/api/email", emailRoutes);
 
 const startServer = async () => {
   try {

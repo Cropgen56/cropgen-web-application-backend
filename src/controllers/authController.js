@@ -5,7 +5,7 @@ import Organization from "../models/organizationModel.js";
 import nodemailer from "nodemailer";
 import admin from "firebase-admin";
 import crypto from "crypto";
-import { sendBasicEmail } from "../config/ses.js";
+import { sendBasicEmail } from "../config/sesClient.js";
 import {
   signJwt,
   genOtp,
