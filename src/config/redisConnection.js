@@ -1,4 +1,3 @@
-// src/utils/redisConnection.js
 import IORedis from "ioredis";
 
 function parseIntEnv(name, fallback) {

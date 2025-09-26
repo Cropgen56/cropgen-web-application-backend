@@ -8,17 +8,12 @@ import {
   deleteUserById,
   updateUserById,
   deleteUserByEmail,
-  // signupRequest,
-  // loginRequest,
-  // verifyLoginOTP,
-  // verifySignupOTP,
   googleLoginMobile,
   checkUser,
   signupWithFirebase,
   isUserExist,
   loginWithPhone,
   forgotPassword,
-  auth,
   resetPassword,
   getUser,
   requestOtp,
@@ -49,9 +44,6 @@ router.post("/signin", signin);
 // forgot password controller
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
-
-// web login api
-router.post("/authenticate", auth);
 
 router.get(
   "/users",
@@ -90,12 +82,6 @@ router.post("/signup/check-user", checkUser);
 router.post("/signup/mobile", signupWithFirebase);
 router.post("/login/is-exist", isUserExist);
 router.post("/login/mobile", loginWithPhone);
-
-// apis for nodemailer
-// router.post("/signup/request", signupRequest);
-// router.post("/login/request", loginRequest);
-// router.post("/signup/verify", verifySignupOTP);
-// router.post("/login/verify", verifyLoginOTP);
 
 // web application login and the singup routes
 router.post("/otp", requestOtp);

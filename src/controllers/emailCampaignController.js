@@ -38,7 +38,7 @@ export const startCampaign = async (req, res) => {
 
     campaign.totalRecipients = total;
     campaign.status = "queued";
-    await campaign.save();
+    await campaign.save();  
 
     // stream recipients to avoid memory overload
     const cursor = User.find(filter).cursor();
