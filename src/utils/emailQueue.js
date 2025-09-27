@@ -1,6 +1,5 @@
 import pkg from "bullmq";
 const { Queue } = pkg;
-
 import { createRedisConnection } from "../config/redisConnection.js";
 
 const connection = createRedisConnection();
@@ -12,7 +11,7 @@ export const emailQueue = new Queue(EMAIL_QUEUE_NAME, {
     attempts: 5,
     backoff: { type: "exponential", delay: 1000 },
     removeOnComplete: 1000,
-    removeOnFail: 10000,
+    removeOnFail: 5000,
   },
 });
 

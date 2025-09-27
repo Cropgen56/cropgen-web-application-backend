@@ -21,5 +21,9 @@ const schema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Fast lookups:
+schema.index({ campaign: 1, status: 1, createdAt: -1 });
+schema.index({ campaign: 1, recipient: 1 });
+
 export default mongoose.models.EmailStatus ||
   mongoose.model("EmailStatus", schema);

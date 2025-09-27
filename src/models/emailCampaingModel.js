@@ -6,7 +6,11 @@ const EmailCampaingSchema = new mongoose.Schema(
     subject: { type: String, required: true },
     html: { type: String, required: true },
     from: { type: String, required: true },
-    segment: { type: Object, default: null },
+    // segment = { filters: { ... }, name?: string, description?: string }
+    segment: {
+      type: Object,
+      default: null,
+    },
     totalRecipients: { type: Number, default: 0 },
     enqueuedBatches: { type: Number, default: 0 },
     sentCount: { type: Number, default: 0 },
@@ -25,6 +29,8 @@ const EmailCampaingSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const EmailCampaing = mongoose.model("Campaign", EmailCampaingSchema);
+// Optional helpful index if you often query by status or createdAt
+EmailCampaingSchema.index({ createdAt: -1, status: 1 });
 
+const EmailCampaing = mongoose.model("Campaign", EmailCampaingSchema);
 export default EmailCampaing;

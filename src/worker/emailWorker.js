@@ -1,7 +1,6 @@
 import Pino from "pino";
 import pkg from "bullmq";
 const { Worker } = pkg;
-// try to get QueueScheduler from different possible shapes
 const QueueScheduler =
   pkg.QueueScheduler ??
   (pkg.default && pkg.default.QueueScheduler) ??
@@ -18,14 +17,14 @@ import mongoose from "mongoose";
 
 const logger = Pino({ level: process.env.LOG_LEVEL || "info" });
 
-// Connect to Mongo before starting worker
+// DB first
 await connectToDatabase(process.env.MONGODB_URI);
 
-// create redis connection (ioredis)
+// Redis
 const connection = createRedisConnection();
 const queueName = process.env.EMAIL_QUEUE_NAME || "emailQueue";
 
-// Try to create QueueScheduler safely (some bundlers / CommonJS interop export it differently)
+// Try scheduler (optional)
 async function initQueueScheduler() {
   if (!QueueScheduler) {
     logger.warn(
@@ -33,33 +32,15 @@ async function initQueueScheduler() {
     );
     return null;
   }
-
   try {
-    // first try as constructor (most common)
     const sched = new QueueScheduler(queueName, { connection });
-    logger.info("QueueScheduler initialized (constructor)");
+    logger.info("QueueScheduler initialized");
     return sched;
-  } catch (e1) {
-    logger.debug(
-      { err: e1 },
-      "QueueScheduler constructor failed, trying as function"
-    );
-    try {
-      // try invoking as function (some builds export a function)
-      const sched = QueueScheduler(queueName, { connection });
-      logger.info("QueueScheduler initialized (function)");
-      return sched;
-    } catch (e2) {
-      logger.warn(
-        { e1, e2 },
-        "QueueScheduler could not be initialized — continuing without a scheduler"
-      );
-      return null;
-    }
+  } catch (err) {
+    logger.warn({ err }, "QueueScheduler init failed — continuing without it");
+    return null;
   }
 }
-
-// initialize scheduler (no crash if it fails)
 await initQueueScheduler();
 
 const maxSendsPerSecond = parseInt(
@@ -71,17 +52,15 @@ const concurrency = parseInt(process.env.SES_SEND_CONCURRENCY || "4", 10);
 const worker = new Worker(
   queueName,
   async (job) => {
-    if (job.name !== "send-batch") {
+    if (job.name !== "send-batch")
       throw new Error("Unexpected job type: " + job.name);
-    }
 
     const { campaignId, subject, html, from, recipients } = job.data;
     const template = Handlebars.compile(html || "");
-
     const campaign = await EmailCampaing.findById(campaignId);
 
-    let sent = 0;
-    let failed = 0;
+    let sent = 0,
+      failed = 0;
 
     for (const r of recipients) {
       const to = r.email;
@@ -106,67 +85,41 @@ const worker = new Worker(
           html: finalHtml,
           from,
         });
-
         sent++;
 
-        // record success (best-effort)
-        try {
-          await EmailStatus.create({
-            campaign: mongoose.Types.ObjectId(campaignId),
-            recipient: to,
-            status: "sent",
-            messageId: res?.MessageId,
-            attempts: 1,
-            lastAttemptAt: new Date(),
-          });
-        } catch (dbErr) {
-          logger.warn(
-            { err: dbErr, to, campaignId },
-            "failed to write EmailStatus for sent message"
-          );
-        }
+        await EmailStatus.create({
+          campaign: new mongoose.Types.ObjectId(campaignId),
+          recipient: to,
+          status: "sent",
+          messageId: res?.MessageId,
+          attempts: 1,
+          lastAttemptAt: new Date(),
+        });
       } catch (err) {
         failed++;
         logger.error({ err, to, campaignId }, "failed to send");
-
-        try {
-          await EmailStatus.create({
-            campaign: mongoose.Types.ObjectId(campaignId),
-            recipient: to,
-            status: "failed",
-            error: { message: err.message, stack: err.stack },
-            attempts: 1,
-            lastAttemptAt: new Date(),
-          });
-        } catch (dbErr) {
-          logger.warn(
-            { err: dbErr, to, campaignId },
-            "failed to write EmailStatus for failure"
-          );
-        }
-
-        // continue with next recipient
+        await EmailStatus.create({
+          campaign: new mongoose.Types.ObjectId(campaignId),
+          recipient: to,
+          status: "failed",
+          error: { message: err.message, stack: err.stack },
+          attempts: 1,
+          lastAttemptAt: new Date(),
+        });
       }
     }
 
-    // update campaign counters
     if (campaign) {
       campaign.sentCount = (campaign.sentCount || 0) + sent;
       campaign.failedCount = (campaign.failedCount || 0) + failed;
+
       if (
         campaign.sentCount + campaign.failedCount >=
         campaign.totalRecipients
       ) {
         campaign.status = "completed";
       }
-      try {
-        await campaign.save();
-      } catch (saveErr) {
-        logger.error(
-          { err: saveErr, campaignId },
-          "failed to update campaign counts"
-        );
-      }
+      await campaign.save();
     }
 
     return { sent, failed };
@@ -178,40 +131,26 @@ const worker = new Worker(
   }
 );
 
-// events
-worker.on("completed", (job, result) => {
-  logger.info({ jobId: job.id, result }, "batch completed");
-});
+worker.on("completed", (job, result) =>
+  logger.info({ jobId: job.id, result }, "batch completed")
+);
+worker.on("failed", (job, err) =>
+  logger.error({ jobId: job.id, err }, "batch failed")
+);
 
-worker.on("failed", (job, err) => {
-  logger.error({ jobId: job.id, err }, "batch failed");
-});
-
-// graceful shutdown
 async function shutdown(signal) {
   try {
     logger.info({ signal }, "shutting down worker...");
     await worker.close();
     try {
       await connection.quit();
-    } catch (e) {
-      logger.warn({ err: e }, "error while quitting redis connection");
-    }
+    } catch {}
+    await mongoose.connection.close();
     process.exit(0);
   } catch (err) {
     logger.error({ err }, "error during shutdown");
     process.exit(1);
   }
 }
-
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
-
-process.on("unhandledRejection", (reason) => {
-  logger.error({ reason }, "unhandledRejection");
-});
-
-process.on("uncaughtException", (err) => {
-  logger.error({ err }, "uncaughtException - exiting");
-  shutdown("uncaughtException");
-});
