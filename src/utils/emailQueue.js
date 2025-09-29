@@ -15,9 +15,11 @@ export const emailQueue = new Queue(EMAIL_QUEUE_NAME, {
   },
 });
 
-export async function enqueueBatchEmail(payload) {
+// add a batch (supports normal + test mode)
+export async function enqueueBatchEmail(payload, opts = {}) {
+  // payload: { campaignId, subject, html, from, recipients[], test?: boolean }
   const jobId = `campaign-${
     payload.campaignId
   }-batch-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-  return emailQueue.add("send-batch", payload, { jobId });
+  return emailQueue.add("send-batch", payload, { jobId, ...opts });
 }

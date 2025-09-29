@@ -21,23 +21,15 @@ import EmailStatus from "../models/emailStatusModel.js";
 
 const logger = Pino({ level: process.env.LOG_LEVEL || "info" });
 
-/**
- * 1) Connect infrastructure (MongoDB, Redis)
- */
+/** 1) Infra connections */
 await connectToDatabase(process.env.MONGODB_URI);
-
 const connection = createRedisConnection();
 const queueName = process.env.EMAIL_QUEUE_NAME || "emailQueue";
 
-/**
- * 2) (Optional) Start a QueueScheduler for delayed/repeatable jobs.
- *    Safe to run even if you never schedule jobs; it just won’t be used.
- */
+/** 2) QueueScheduler (only needed for delayed/repeat jobs) */
 async function initQueueScheduler() {
   if (!QueueScheduler) {
-    logger.warn(
-      "QueueScheduler not found in bullmq import — continuing without a scheduler"
-    );
+    logger.warn("QueueScheduler not found — continuing without it");
     return null;
   }
   try {
@@ -45,59 +37,66 @@ async function initQueueScheduler() {
     logger.info("QueueScheduler initialized");
     return sched;
   } catch (err) {
-    logger.warn({ err }, "QueueScheduler init failed — continuing without it");
+    logger.warn({ err }, "QueueScheduler init failed");
     return null;
   }
 }
 await initQueueScheduler();
 
-/**
- * 3) Throughput controls:
- *    - limiter: max SES sends per second (global per worker)
- *    - concurrency: parallel jobs processed by this worker
- */
+/** 3) Throughput controls */
 const maxSendsPerSecond = parseInt(
   process.env.SES_MAX_SENDS_PER_SECOND || "14",
   10
 );
 const concurrency = parseInt(process.env.SES_SEND_CONCURRENCY || "4", 10);
 
-/**
- * 4) Worker: consumes "send-batch" jobs from Redis and sends emails.
- */
+/** 4) Worker: processes "send-batch" jobs */
 const worker = new Worker(
   queueName,
   async (job) => {
-    if (job.name !== "send-batch") {
+    if (job.name !== "send-batch")
       throw new Error(`Unexpected job type: ${job.name}`);
-    }
 
-    const { campaignId, subject, html, from, recipients } = job.data ?? {};
+    const { campaignId, subject, html, from, recipients, test } =
+      job.data ?? {};
 
-    // Basic validation to prevent silent no-ops
+    // Basic guards
     if (!campaignId) throw new Error("campaignId is required");
     if (!subject) throw new Error("subject is required");
     if (!from) throw new Error("from is required");
-    if (!Array.isArray(recipients) || recipients.length === 0) {
+    if (!Array.isArray(recipients) || recipients.length === 0)
       throw new Error("recipients[] is required and must be non-empty");
-    }
 
     const template = Handlebars.compile(html || "");
     const campaign = await EmailCampaing.findById(campaignId);
 
+    // ✅ Early exit: if admin has stopped the campaign (we use status === "failed" to mean “stopped”)
+    if (campaign && campaign.status === "failed" && !test) {
+      return { sent: 0, failed: 0, cancelled: true };
+    }
+
     let sent = 0;
     let failed = 0;
 
-    // 4.a) Send personalized email to each recipient
+    // Send loop
     for (const r of recipients) {
-      const to = r?.email;
+      // ⏹ Mid-loop quick check every 25 recipients — stop fast if admin pressed Stop
+      if (!test && (sent + failed) % 25 === 0) {
+        const fresh = await EmailCampaing.findById(campaignId).select({
+          status: 1,
+        });
+        if (fresh && fresh.status === "failed") {
+          return { sent, failed, cancelled: true };
+        }
+      }
+
+      const to = r?.email?.trim();
       if (!to) {
         failed++;
         logger.warn({ r }, "Skipping recipient with missing email");
         continue;
       }
 
-      // Personalize HTML using Handlebars (no unsubscribe footer)
       const personalizedHtml = template({
         name: r?.name,
         email: r?.email,
@@ -111,7 +110,6 @@ const worker = new Worker(
           html: personalizedHtml,
           from,
         });
-
         sent++;
 
         await EmailStatus.create({
@@ -121,6 +119,8 @@ const worker = new Worker(
           messageId: res?.MessageId,
           attempts: 1,
           lastAttemptAt: new Date(),
+          isTest: Boolean(test),
+          batchId: String(job.id),
         });
       } catch (err) {
         failed++;
@@ -132,12 +132,14 @@ const worker = new Worker(
           error: { message: err?.message, stack: err?.stack },
           attempts: 1,
           lastAttemptAt: new Date(),
+          isTest: Boolean(test),
+          batchId: String(job.id),
         });
       }
     }
 
-    // 4.b) Update campaign summary and completion flag
-    if (campaign) {
+    // Update counters only for real sends (not test) and when not cancelled
+    if (!test && campaign) {
       campaign.sentCount = (campaign.sentCount || 0) + sent;
       campaign.failedCount = (campaign.failedCount || 0) + failed;
 
@@ -148,7 +150,7 @@ const worker = new Worker(
       await campaign.save();
     }
 
-    return { sent, failed };
+    return { sent, failed, test: Boolean(test) };
   },
   {
     connection,
@@ -157,19 +159,15 @@ const worker = new Worker(
   }
 );
 
-/**
- * 5) Observability
- */
-worker.on("completed", (job, result) => {
-  logger.info({ jobId: job.id, result }, "send-batch completed");
-});
-worker.on("failed", (job, err) => {
-  logger.error({ jobId: job?.id, err }, "send-batch failed");
-});
+/** 5) Logs */
+worker.on("completed", (job, result) =>
+  logger.info({ jobId: job.id, result }, "send-batch completed")
+);
+worker.on("failed", (job, err) =>
+  logger.error({ jobId: job?.id, err }, "send-batch failed")
+);
 
-/**
- * 6) Graceful shutdown: close BullMQ, Redis, and Mongo cleanly.
- */
+/** 6) Graceful shutdown */
 async function shutdown(signal) {
   try {
     logger.info({ signal }, "Shutting down worker...");

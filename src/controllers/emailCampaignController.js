@@ -4,19 +4,16 @@ import User from "../models/usersModel.js";
 import { enqueueBatchEmail } from "../utils/emailQueue.js";
 import { buildSafeUserFilter } from "../utils/segments.js";
 import { isDeliverableEmail } from "../utils/emailValidation.js";
+import { emailQueue } from "../utils/emailQueue.js";
 
 const BATCH_SIZE = parseInt(process.env.EMAIL_BATCH_SIZE || "100", 10);
 
-/**
- * Create a campaign (template + optional segment filter)
- * Body: { name, subject, html, from, segment? }
- */
+// Create campaign
 export const createCampaign = async (req, res) => {
   try {
     const { name, subject, html, from, segment } = req.body || {};
-    if (!name || !subject || !html || !from) {
+    if (!name || !subject || !html || !from)
       return res.status(400).json({ error: "Missing required fields" });
-    }
 
     const campaign = await EmailCampaing.create({
       name,
@@ -35,10 +32,7 @@ export const createCampaign = async (req, res) => {
   }
 };
 
-/**
- * List campaigns (paginated + basic filters)
- * Query: ?page=1&limit=20&status=draft|queued|sending|completed&q=search
- */
+// List campaigns (paginated, filterable)
 export const listCampaigns = async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit || "20", 10), 100);
@@ -59,23 +53,14 @@ export const listCampaigns = async (req, res) => {
       EmailCampaing.countDocuments(filter),
     ]);
 
-    return res.status(200).json({
-      success: true,
-      page,
-      limit,
-      total,
-      items,
-    });
+    return res.status(200).json({ success: true, page, limit, total, items });
   } catch (err) {
     console.error("[listCampaigns] error:", err);
     return res.status(500).json({ error: "server error" });
   }
 };
 
-/**
- * Get campaign segment stats (preview audience size)
- * GET /v1/api/email/campaign/:campaignId/segment-stats
- */
+// Audience preview (count only)
 export const getCampaignSegmentStats = async (req, res) => {
   try {
     const { campaignId } = req.params;
@@ -85,44 +70,69 @@ export const getCampaignSegmentStats = async (req, res) => {
     const filter = buildSafeUserFilter(campaign.segment || {});
     const total = await User.countDocuments(filter);
 
-    return res.status(200).json({
-      success: true,
-      segmentFilter: filter,
-      totalRecipients: total,
-    });
+    return res
+      .status(200)
+      .json({ success: true, segmentFilter: filter, totalRecipients: total });
   } catch (err) {
     console.error("[getCampaignSegmentStats] error:", err);
     return res.status(500).json({ error: "server error" });
   }
 };
 
-/**
- * Start a campaign: validate emails and enqueue recipients in batches
- * POST /v1/api/email/campaign/:campaignId/start
- */
+// Test mode: send to one test email only (doesn't change campaign totals)
+export const testCampaign = async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+    const { to } = req.body || {};
+    if (!to)
+      return res.status(400).json({ error: "test 'to' email is required" });
+
+    const campaign = await EmailCampaing.findById(campaignId);
+    if (!campaign) return res.status(404).json({ error: "campaign not found" });
+
+    const isValid = await isDeliverableEmail(String(to).trim());
+    if (!isValid)
+      return res.status(400).json({ error: "test email not deliverable" });
+
+    await enqueueBatchEmail({
+      campaignId: campaign._id.toString(),
+      subject: campaign.subject,
+      html: campaign.html,
+      from: campaign.from,
+      recipients: [
+        { email: String(to).trim(), name: "Test Recipient", userId: null },
+      ],
+      test: true,
+    });
+
+    return res
+      .status(200)
+      .json({ success: true, message: "test email enqueued" });
+  } catch (err) {
+    console.error("[testCampaign] error:", err);
+    return res.status(500).json({ error: "server error" });
+  }
+};
+
+// Start campaign (validates, batches, enqueues)
 export const startCampaign = async (req, res) => {
   try {
     const { campaignId } = req.params;
     const campaign = await EmailCampaing.findById(campaignId);
     if (!campaign) return res.status(404).json({ error: "campaign not found" });
-
-    // Basic state guard: only allow starting once
-    if (["queued", "sending", "completed"].includes(campaign.status)) {
+    if (["queued", "sending", "completed"].includes(campaign.status))
       return res
         .status(400)
         .json({ error: `campaign already ${campaign.status}` });
-    }
 
     const filter = buildSafeUserFilter(campaign.segment || {});
     const total = await User.countDocuments(filter);
     if (total === 0) return res.status(400).json({ error: "no recipients" });
 
-    // Mark as queued
     campaign.totalRecipients = total;
     campaign.status = "queued";
     await campaign.save();
 
-    // Stream recipients
     const cursor = User.find(filter, {
       email: 1,
       firstName: 1,
@@ -137,7 +147,6 @@ export const startCampaign = async (req, res) => {
     for await (const user of cursor) {
       const email = (user.email || "").trim();
       const name = user.firstName || user.name || "";
-
       if (!email) {
         skippedMissingEmail++;
         continue;
@@ -146,7 +155,6 @@ export const startCampaign = async (req, res) => {
       const deliverable = await isDeliverableEmail(email);
       if (!deliverable) {
         skippedInvalid++;
-        // record a pre-send failure
         try {
           await EmailStatus.create({
             campaign: campaign._id,
@@ -155,6 +163,7 @@ export const startCampaign = async (req, res) => {
             error: { message: "Pre-validation failed (format/domain/MX)" },
             attempts: 0,
             lastAttemptAt: new Date(),
+            isTest: false,
           });
         } catch (werr) {
           console.warn(
@@ -166,7 +175,6 @@ export const startCampaign = async (req, res) => {
       }
 
       batch.push({ email, name, userId: user._id });
-
       if (batch.length >= BATCH_SIZE) {
         await enqueueBatchEmail({
           campaignId: campaign._id.toString(),
@@ -180,7 +188,6 @@ export const startCampaign = async (req, res) => {
       }
     }
 
-    // flush tail
     if (batch.length) {
       await enqueueBatchEmail({
         campaignId: campaign._id.toString(),
@@ -192,7 +199,6 @@ export const startCampaign = async (req, res) => {
       enqueued++;
     }
 
-    // Move to "sending"
     campaign.enqueuedBatches = enqueued;
     campaign.status = "sending";
     await campaign.save();
@@ -210,10 +216,7 @@ export const startCampaign = async (req, res) => {
   }
 };
 
-/**
- * Get campaign status / details
- * GET /v1/api/email/campaign/:campaignId
- */
+// Campaign status
 export const getCampaignStatus = async (req, res) => {
   try {
     const campaign = await EmailCampaing.findById(req.params.campaignId);
@@ -240,10 +243,7 @@ export const getCampaignStatus = async (req, res) => {
   }
 };
 
-/**
- * List failed recipients (paginated)
- * GET /v1/api/email/campaign/:campaignId/failures?limit=50&page=1
- */
+// Failures list (paginated)
 export const listCampaignFailures = async (req, res) => {
   try {
     const { campaignId } = req.params;
@@ -255,31 +255,30 @@ export const listCampaignFailures = async (req, res) => {
     if (!campaign) return res.status(404).json({ error: "campaign not found" });
 
     const [items, total] = await Promise.all([
-      EmailStatus.find({ campaign: campaign._id, status: "failed" })
+      EmailStatus.find({
+        campaign: campaign._id,
+        status: "failed",
+        isTest: false,
+      })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
-      EmailStatus.countDocuments({ campaign: campaign._id, status: "failed" }),
+      EmailStatus.countDocuments({
+        campaign: campaign._id,
+        status: "failed",
+        isTest: false,
+      }),
     ]);
 
-    return res.status(200).json({
-      success: true,
-      page,
-      limit,
-      total,
-      items,
-    });
+    return res.status(200).json({ success: true, page, limit, total, items });
   } catch (err) {
     console.error("[listCampaignFailures] error:", err);
     return res.status(500).json({ error: "server error" });
   }
 };
 
-/**
- * Retry all failed recipients (re-validate before enqueue)
- * POST /v1/api/email/campaign/:campaignId/retry-failures
- */
+// Retry failures (re-validates)
 export const retryCampaignFailures = async (req, res) => {
   try {
     const { campaignId } = req.params;
@@ -289,17 +288,17 @@ export const retryCampaignFailures = async (req, res) => {
     const failures = await EmailStatus.find({
       campaign: campaign._id,
       status: "failed",
+      isTest: false,
     })
       .select({ recipient: 1 })
       .lean();
 
-    if (!failures.length) {
+    if (!failures.length)
       return res
         .status(200)
         .json({ success: true, retriedBatches: 0, retriedRecipients: 0 });
-    }
 
-    const validRecipients = [];
+    const valid = [];
     let skippedInvalidFailures = 0;
 
     for (const f of failures) {
@@ -308,16 +307,14 @@ export const retryCampaignFailures = async (req, res) => {
         skippedInvalidFailures++;
         continue;
       }
-      if (await isDeliverableEmail(email)) {
-        validRecipients.push({ email, name: "", userId: null });
-      } else {
-        skippedInvalidFailures++;
-      }
+      if (await isDeliverableEmail(email))
+        valid.push({ email, name: "", userId: null });
+      else skippedInvalidFailures++;
     }
 
     let retriedBatches = 0;
-    for (let i = 0; i < validRecipients.length; i += BATCH_SIZE) {
-      const recipients = validRecipients.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < valid.length; i += BATCH_SIZE) {
+      const recipients = valid.slice(i, i + BATCH_SIZE);
       await enqueueBatchEmail({
         campaignId: campaign._id.toString(),
         subject: campaign.subject,
@@ -328,7 +325,7 @@ export const retryCampaignFailures = async (req, res) => {
       retriedBatches++;
     }
 
-    if (campaign.status === "completed" && validRecipients.length) {
+    if (campaign.status === "completed" && valid.length) {
       campaign.status = "sending";
       await campaign.save();
     }
@@ -336,7 +333,7 @@ export const retryCampaignFailures = async (req, res) => {
     return res.status(200).json({
       success: true,
       retriedBatches,
-      retriedRecipients: validRecipients.length,
+      retriedRecipients: valid.length,
       skippedInvalidFailures,
     });
   } catch (err) {
@@ -345,11 +342,7 @@ export const retryCampaignFailures = async (req, res) => {
   }
 };
 
-/**
- * Update a campaign (only editable in draft/queued)
- * PATCH /v1/api/email/campaign/:campaignId
- * Body: { name?, subject?, html?, from?, segment? }
- */
+// Update campaign (draft/queued only)
 export const updateCampaign = async (req, res) => {
   try {
     const { campaignId } = req.params;
@@ -360,16 +353,13 @@ export const updateCampaign = async (req, res) => {
 
     const campaign = await EmailCampaing.findById(campaignId);
     if (!campaign) return res.status(404).json({ error: "campaign not found" });
-
-    if (!["draft", "queued"].includes(campaign.status)) {
+    if (!["draft", "queued"].includes(campaign.status))
       return res.status(400).json({
         error: `cannot update campaign in status: ${campaign.status}`,
       });
-    }
 
     Object.assign(campaign, updates);
     await campaign.save();
-
     return res.status(200).json({ success: true, campaign });
   } catch (err) {
     console.error("[updateCampaign] error:", err);
@@ -377,21 +367,50 @@ export const updateCampaign = async (req, res) => {
   }
 };
 
-/**
- * Delete a campaign (+ its EmailStatus records)
- * DELETE /v1/api/email/campaign/:campaignId
- * Note: consider restricting deletion if status is "sending" to avoid confusion.
- */
-export const deleteCampaign = async (req, res) => {
+// stop campaign
+export const stopCampaign = async (req, res) => {
   try {
     const { campaignId } = req.params;
     const campaign = await EmailCampaing.findById(campaignId);
     if (!campaign) return res.status(404).json({ error: "campaign not found" });
 
-    // Optional guard: block deletion while sending
-    if (campaign.status === "sending") {
-      return res.status(400).json({ error: "cannot delete while sending" });
+    if (!["queued", "sending"].includes(campaign.status)) {
+      return res
+        .status(400)
+        .json({ error: `cannot stop campaign in status: ${campaign.status}` });
     }
+
+    // Remove queued/delayed jobs for this campaign
+    const jobs = await emailQueue.getJobs(["waiting", "delayed"]);
+    await Promise.all(
+      jobs
+        .filter(
+          (j) =>
+            j.name === "send-batch" &&
+            j.data?.campaignId === String(campaign._id)
+        )
+        .map((j) => j.remove())
+    );
+
+    // Mark as failed (or introduce a "stopped" status if you prefer)
+    campaign.status = "failed";
+    await campaign.save();
+
+    return res.status(200).json({ success: true, message: "campaign stopped" });
+  } catch (err) {
+    console.error("[stopCampaign] error:", err);
+    return res.status(500).json({ error: "server error" });
+  }
+};
+
+// Delete campaign (+ its statuses)
+export const deleteCampaign = async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+    const campaign = await EmailCampaing.findById(campaignId);
+    if (!campaign) return res.status(404).json({ error: "campaign not found" });
+    if (campaign.status === "sending")
+      return res.status(400).json({ error: "cannot delete while sending" });
 
     await Promise.all([
       EmailCampaing.findByIdAndDelete(campaignId),

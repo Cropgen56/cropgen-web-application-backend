@@ -17,13 +17,15 @@ const schema = new mongoose.Schema(
     error: { type: Object },
     attempts: { type: Number, default: 0 },
     lastAttemptAt: { type: Date },
+    isTest: { type: Boolean, default: false }, // test mode marker
+    batchId: { type: String }, // BullMQ job.id for traceability
   },
   { timestamps: true }
 );
 
-// Fast lookups:
 schema.index({ campaign: 1, status: 1, createdAt: -1 });
 schema.index({ campaign: 1, recipient: 1 });
+schema.index({ isTest: 1, createdAt: -1 });
 
 export default mongoose.models.EmailStatus ||
   mongoose.model("EmailStatus", schema);

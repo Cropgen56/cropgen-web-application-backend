@@ -5,20 +5,20 @@ const EmailCampaingSchema = new mongoose.Schema(
     name: { type: String, required: true },
     subject: { type: String, required: true },
     html: { type: String, required: true },
-    from: { type: String, required: true },
-    segment: {
-      type: Object,
-      default: null,
-    },
+    from: { type: String, required: true }, // e.g., "Brand <no-reply@domain.com>" or "no-reply@domain.com"
+    segment: { type: Object, default: null }, // audience rules used to build a User filter
+
     totalRecipients: { type: Number, default: 0 },
     enqueuedBatches: { type: Number, default: 0 },
     sentCount: { type: Number, default: 0 },
     failedCount: { type: Number, default: 0 },
+
     status: {
       type: String,
       enum: ["draft", "queued", "sending", "completed", "failed"],
       default: "draft",
     },
+
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -28,7 +28,6 @@ const EmailCampaingSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Optional helpful index if you often query by status or createdAt
 EmailCampaingSchema.index({ createdAt: -1, status: 1 });
 
 const EmailCampaing = mongoose.model("Campaign", EmailCampaingSchema);
