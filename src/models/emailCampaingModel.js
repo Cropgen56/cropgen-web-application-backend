@@ -6,7 +6,6 @@ const EmailCampaingSchema = new mongoose.Schema(
     subject: { type: String, required: true },
     html: { type: String, required: true },
     from: { type: String, required: true },
-    // segment = { filters: { ... }, name?: string, description?: string }
     segment: {
       type: Object,
       default: null,
