@@ -11,6 +11,7 @@ import {
   stopCampaign,
   deleteCampaign,
   testCampaign,
+  getCampaignDetails,
 } from "../controllers/emailCampaignController.js";
 
 const router = express.Router();
@@ -27,6 +28,7 @@ router.get("/campaign/:campaignId", getCampaignStatus);
 router.get("/campaign/:campaignId/failures", listCampaignFailures);
 router.post("/campaign/:campaignId/retry-failures", retryCampaignFailures);
 
+router.get("/campaign-details/:campaignId", getCampaignDetails);
 router.patch("/campaign/:campaignId", updateCampaign);
 router.delete("/campaign/:campaignId", deleteCampaign);
 router.post("/campaign/:campaignId/stop", stopCampaign);

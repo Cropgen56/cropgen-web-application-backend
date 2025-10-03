@@ -342,6 +342,39 @@ export const retryCampaignFailures = async (req, res) => {
   }
 };
 
+// get campaign details
+export const getCampaignDetails = async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+
+    // Validate ObjectId
+    if (!campaignId || !campaignId.match(/^[0-9a-fA-F]{24}$/)) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid campaign ID" });
+    }
+
+    // Fetch campaign with full details + populate createdBy
+    const campaign = await EmailCampaing.findById(campaignId);
+
+    console.log("Fetched campaign:", campaign);
+    if (!campaign) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Campaign not found" });
+    }
+
+    // Return full mongoose object
+    return res.status(200).json({
+      success: true,
+      campaign,
+    });
+  } catch (err) {
+    console.error("[getCampaignDetails] error:", err);
+    return res.status(500).json({ success: false, error: "Server error" });
+  }
+};
+
 // Update campaign (draft/queued only)
 export const updateCampaign = async (req, res) => {
   try {
