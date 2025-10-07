@@ -11,6 +11,8 @@ import cropRoutes from "./src/routes/cropRoutes.js";
 import emailRoutes from "./src/routes/emailRoutes.js";
 import "./src/config/firebaseConfig.js";
 import cookieParser from "cookie-parser";
+import subscriptionRoutes from "./src/routes/subscriptionPlans.js";
+import userSubscriptionRoutes from "./src/routes/userSubscriptions.js";
 
 dotenv.config();
 
@@ -45,6 +47,8 @@ app.use("/v1/api/org", organizationRoutes);
 app.use("/v1/api/operation", operationRoutes);
 app.use("/v1/api/crop", cropRoutes);
 app.use("/v1/api/email", emailRoutes);
+app.use("/v1/api/subscription", subscriptionRoutes);
+app.use("/v1/api/user-subscriptions", userSubscriptionRoutes);
 
 const startServer = async () => {
   try {

@@ -7,7 +7,12 @@ const PricingSchema = new mongoose.Schema({
     enum: ["monthly", "yearly", "trial"],
     required: true,
   },
-  amountMinor: { type: Number, required: true }, // in paise/cents (e.g., 2900 = ₹29.00)
+  amountMinor: { type: Number, required: true }, // in paise/cents (e.g., 2900 = ₹29.00) per unit
+  unit: {
+    type: String,
+    enum: ["hectare", "acre"],
+    default: "hectare",
+  }, // Indicates what the amountMinor is charged per (e.g., per hectare for agriculture plans)
 });
 
 const SubscriptionPlanSchema = new mongoose.Schema({
@@ -15,11 +20,11 @@ const SubscriptionPlanSchema = new mongoose.Schema({
   slug: { type: String, required: true, unique: true }, // "free_trial", "basic", etc.
   description: { type: String },
 
-  maxUsers: { type: Number, default: 1 }, // allowed user seats
+  maxUsers: { type: Number, default: 1 }, // allowed user seats (e.g., team size)
   isTrial: { type: Boolean, default: false }, // true for free trial
   trialDays: { type: Number, default: 0 }, // 30 days trial
 
-  pricing: [PricingSchema], // multiple currency options
+  pricing: [PricingSchema], // multiple currency options with per-unit basis
 
   // Features as boolean flags
   features: {
