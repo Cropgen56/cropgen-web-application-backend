@@ -25,7 +25,7 @@ import {
   verifyRefreshToken,
 } from "../utils/auth.utils.js";
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_ACCESS_SECRET;
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
