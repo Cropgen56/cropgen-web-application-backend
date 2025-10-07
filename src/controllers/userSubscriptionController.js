@@ -13,7 +13,7 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-// Choose a subscription plan and initiate payment
+// Create a user subscription and initiate payment
 export const createUserSubscription = async (req, res) => {
   try {
     const { error } = userSubscriptionSchema.validate(req.body, {
@@ -69,11 +69,20 @@ export const createUserSubscription = async (req, res) => {
       );
     }
 
+    // Create a short receipt (max 40 characters)
+    const shortUserId = userId.slice(-6); // Last 6 chars of userId
+    const shortPlanId = planId.slice(-6); // Last 6 chars of planId
+    const timestamp = Date.now().toString().slice(-6); // Last 6 chars of timestamp
+    const receipt = `sub_${shortUserId}_${shortPlanId}_${timestamp}`.slice(
+      0,
+      40
+    );
+
     // Create Razorpay order
     const order = await razorpay.orders.create({
-      amount: totalAmountMinor, // In paise/cents
+      amount: totalAmountMinor,
       currency,
-      receipt: `sub_${userId}_${planId}_${Date.now()}`,
+      receipt,
       notes: { userId, planId, hectares },
     });
 
@@ -174,59 +183,3 @@ export const verifyUserSubscriptionPayment = async (req, res) => {
     });
   }
 };
-
-// import axios from "axios";
-
-// const initiatePayment = async (planId, hectares, currency, billingCycle) => {
-//   try {
-//     // Step 1: Create subscription and get order details
-//     const response = await axios.post(
-//       "http://localhost:3000/api/user-subscriptions",
-//       {
-//         planId,
-//         hectares,
-//         currency,
-//         billingCycle,
-//       },
-//       { headers: { Authorization: `Bearer ${userToken}` } }
-//     );
-
-//     const {
-//       orderId,
-//       amountMinor,
-//       currency: orderCurrency,
-//       key,
-//       subscriptionId,
-//     } = response.data.data;
-
-//     // Step 2: Open Razorpay checkout
-//     const options = {
-//       key,
-//       amount: amountMinor,
-//       currency: orderCurrency,
-//       order_id: orderId,
-//       handler: async (paymentResponse) => {
-//         // Step 3: Verify payment
-//         await axios.post(
-//           `http://localhost:3000/api/user-subscriptions/${subscriptionId}/verify`,
-//           {
-//             razorpay_payment_id: paymentResponse.razorpay_payment_id,
-//             razorpay_order_id: paymentResponse.razorpay_order_id,
-//             razorpay_signature: paymentResponse.razorpay_signature,
-//           },
-//           { headers: { Authorization: `Bearer ${userToken}` } }
-//         );
-//         alert("Subscription activated successfully!");
-//       },
-//       prefill: {
-//         name: "User Name",
-//         email: "user@example.com",
-//       },
-//     };
-
-//     const rzp = new window.Razorpay(options);
-//     rzp.open();
-//   } catch (error) {
-//     console.error("Payment initiation failed:", error);
-//   }
-// };

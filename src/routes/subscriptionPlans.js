@@ -7,13 +7,32 @@ import {
   updateSubscriptionPlan,
   deleteSubscriptionPlan,
 } from "../controllers/subscriptionPlanController.js";
+import {
+  isAuthenticated,
+  authorizeRoles,
+} from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.post("/", createSubscriptionPlan); // Create (admin only)
-router.get("/", getAllSubscriptionPlans); // Read all
-router.get("/:id", getSubscriptionPlanById); // Read one
-router.patch("/:id", updateSubscriptionPlan); // Update
-router.delete("/:id", deleteSubscriptionPlan); // Delete
+router.post(
+  "/",
+  isAuthenticated,
+  authorizeRoles("admin"),
+  createSubscriptionPlan
+);
+router.get("/", isAuthenticated, getAllSubscriptionPlans);
+router.get("/:id", isAuthenticated, getSubscriptionPlanById);
+router.patch(
+  "/:id",
+  isAuthenticated,
+  authorizeRoles("admin"),
+  updateSubscriptionPlan
+);
+router.delete(
+  "/:id",
+  isAuthenticated,
+  authorizeRoles("admin"),
+  deleteSubscriptionPlan
+);
 
 export default router;
