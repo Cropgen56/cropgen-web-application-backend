@@ -596,7 +596,7 @@ export const signin = async (req, res) => {
         role: user.role,
         organization: user.organization,
       },
-      process.env.JWT_SECRET,
+      process.env.JWT_ACCESS_SECRET,
       { expiresIn: "15d" }
     );
 
