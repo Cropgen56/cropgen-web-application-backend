@@ -49,7 +49,7 @@ export const createSubscriptionPlan = async (req, res) => {
 // Get all subscription plans (optimized with lean)
 export const getAllSubscriptionPlans = async (req, res) => {
   try {
-    const plans = await SubscriptionPlan.find({ active: true })
+    const plans = await SubscriptionPlan.find({})
       .sort({ createdAt: -1 })
       .lean();
     res.status(200).json({
