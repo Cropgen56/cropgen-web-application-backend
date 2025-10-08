@@ -161,8 +161,6 @@ export const updateSubscriptionPlan = async (req, res) => {
     });
   }
 };
-
-// Soft delete a subscription plan
 export const deleteSubscriptionPlan = async (req, res) => {
   try {
     const { error } = idSchema.validate(req.params.id);
@@ -174,11 +172,7 @@ export const deleteSubscriptionPlan = async (req, res) => {
       });
     }
 
-    const plan = await SubscriptionPlan.findByIdAndUpdate(
-      req.params.id,
-      { $set: { active: false, updatedAt: Date.now() } },
-      { new: true }
-    );
+    const plan = await SubscriptionPlan.findByIdAndDelete(req.params.id);
     if (!plan) {
       return res.status(404).json({
         success: false,
@@ -187,13 +181,13 @@ export const deleteSubscriptionPlan = async (req, res) => {
     }
     res.status(200).json({
       success: true,
-      message: "Subscription plan soft deleted successfully",
+      message: "Subscription plan permanently deleted successfully",
       data: plan,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "Error soft deleting subscription plan",
+      message: "Error permanently deleting subscription plan",
       error: error.message,
     });
   }

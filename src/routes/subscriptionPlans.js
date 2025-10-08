@@ -1,4 +1,3 @@
-// In your router file (e.g., routes/subscriptionPlans.js)
 import express from "express";
 import {
   createSubscriptionPlan,
@@ -30,8 +29,8 @@ router.patch(
 );
 router.delete(
   "/:id",
-  isAuthenticated,
-  authorizeRoles("admin"),
+  // isAuthenticated,
+  // authorizeRoles("admin"),
   deleteSubscriptionPlan
 );
 
