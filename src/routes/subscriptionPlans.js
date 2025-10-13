@@ -29,8 +29,8 @@ router.patch(
 );
 router.delete(
   "/:id",
-  // isAuthenticated,
-  // authorizeRoles("admin"),
+  isAuthenticated,
+  authorizeRoles("admin"),
   deleteSubscriptionPlan
 );
 

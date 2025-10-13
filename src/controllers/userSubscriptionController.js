@@ -28,7 +28,7 @@ export const createUserSubscription = async (req, res) => {
     }
 
     const { planId, hectares, currency, billingCycle } = req.body;
-    const userId = req.user.id; // Assumes authenticated user (JWT middleware)
+    const userId = req.user.id;
 
     // Fetch the subscription plan
     const plan = await SubscriptionPlan.findById(planId).lean();

@@ -7,9 +7,6 @@ import admin from "firebase-admin";
 import crypto from "crypto";
 import { sendBasicEmail } from "../config/sesClient.js";
 import {
-  genOtp,
-  hash,
-  compare,
   resolveOrganizationByCode,
   htmlOtp,
   htmlWelcome,
@@ -350,10 +347,11 @@ export const verifyOtp = async (req, res) => {
 export const refreshTokenHandler = async (req, res) => {
   try {
     const token = req.cookies?.refreshToken;
-    if (!token)
+    if (!token) {
       return res
         .status(401)
         .json({ success: false, message: "No refresh token" });
+    }
 
     let decoded;
     try {
@@ -382,7 +380,6 @@ export const refreshTokenHandler = async (req, res) => {
         .json({ success: false, message: "Refresh token not recognized" });
     }
 
-    // Check stored refreshTokenId matches token's rid
     if (user.refreshTokenId !== tokenRid) {
       // token replay or revoked - revoke server-side
       user.refreshTokenId = null;
@@ -408,8 +405,12 @@ export const refreshTokenHandler = async (req, res) => {
 
     setRefreshCookie(res, newRefreshToken);
 
-    // Return token in same key your client expects
-    return res.json({ success: true, token: newAccessToken });
+    // Send consistent key expected by the client
+    return res.json({
+      success: true,
+      accessToken: newAccessToken,
+      user: { id: user._id, role: user.role, organization: user.organization },
+    });
   } catch (err) {
     console.error("refreshToken error:", err);
     clearRefreshCookie(res);
@@ -548,7 +549,6 @@ export const completeProfile = async (req, res) => {
   }
 };
 
-// ##########################################################################
 // admin login
 export const signin = async (req, res) => {
   try {
@@ -800,82 +800,6 @@ export const getUserById = async (req, res) => {
       message: "Failed to fetch user.",
       error: error.message,
     });
-  }
-};
-
-// Cropy deals all auth apis
-export const registerUser = async (req, res) => {
-  try {
-    const {
-      firstName,
-      lastName,
-      email,
-      phone,
-      role,
-      organization,
-      terms,
-      userId,
-    } = req.body;
-
-    // Validate required fields
-    if (!userId || !organization || !phone || !terms) {
-      return res
-        .status(400)
-        .json({ message: "All required fields must be filled." });
-    }
-
-    // Optimize validation with a single query
-    const existingUser = await User.findOne({
-      $or: [{ phone }, { userId }],
-    });
-
-    if (existingUser) {
-      return res.status(200).json({
-        message: "User already exists.",
-        data: existingUser,
-      });
-    }
-
-    if (email) {
-      const emailExists = await User.findOne({ email });
-      if (emailExists) {
-        return res.status(409).json({
-          message: "Email already exists, please try another.",
-        });
-      }
-    }
-
-    // Create a new user
-    const newUser = new User({
-      userId,
-      firstName: firstName || undefined,
-      lastName: lastName || undefined,
-      email: email || undefined,
-      phone,
-      role: role || "farmer",
-      organization,
-      terms,
-    });
-
-    // Save user to database
-    await newUser.save();
-
-    res.status(201).json({
-      success: true,
-      message: "User registered successfully!",
-      data: newUser,
-    });
-  } catch (error) {
-    if (error.code === 11000) {
-      const field = Object.keys(error.keyPattern)[0];
-      return res.status(409).json({
-        message: `${field} already exists. Please use a different ${field}.`,
-      });
-    }
-    console.error("Error during user registration:", error);
-    res
-      .status(500)
-      .json({ message: "Internal server error. Please try again later." });
   }
 };
 

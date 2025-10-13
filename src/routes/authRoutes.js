@@ -4,7 +4,6 @@ import {
   getAllUsers,
   getUserById,
   googleLogin,
-  registerUser,
   deleteUserById,
   updateUserById,
   deleteUserByEmail,
@@ -16,12 +15,16 @@ import {
   forgotPassword,
   resetPassword,
   getUser,
-  requestOtp,
-  verifyOtp,
   completeProfile,
-  refreshTokenHandler,
   logoutHandler,
 } from "../controllers/authController.js";
+
+import {
+  requestOtp,
+  verifyOtp,
+  refreshTokenHandler,
+  cropydealsRegisterLogin,
+} from "../controllers/authcontroller/index.js";
 
 import { requireAuth } from "../middleware/authMiddleware.js";
 
@@ -74,8 +77,6 @@ router.patch(
   authorizeRoles("admin", "developer", "client", "farmer"),
   updateUserById
 );
-// cropydeals auth routes
-router.post("/register-user", registerUser);
 
 // mobile application authentication routes
 router.post("/signup/check-user", checkUser);
@@ -90,4 +91,6 @@ router.post("/complete-profile", requireAuth, completeProfile);
 router.post("/refresh", refreshTokenHandler);
 router.post("/logout", logoutHandler);
 
+// cropydeals register login api
+router.post("/cropydeal-register-login", cropydealsRegisterLogin);
 export default router;

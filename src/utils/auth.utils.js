@@ -28,8 +28,8 @@ export function generateRefreshId() {
 export function setRefreshCookie(res, refreshToken) {
   const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "Strict",
+    secure: false,
+    sameSite: "Lax",
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: "/",
   };
@@ -39,8 +39,8 @@ export function setRefreshCookie(res, refreshToken) {
 export function clearRefreshCookie(res) {
   res.clearCookie(REFRESH_COOKIE_NAME, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "Strict",
+    secure: false,
+    sameSite: "Lax",
     path: "/",
   });
 }
