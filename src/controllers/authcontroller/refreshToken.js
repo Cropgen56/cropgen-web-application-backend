@@ -10,7 +10,7 @@ import {
 
 export const refreshTokenHandler = async (req, res) => {
   try {
-    const token = req.cookies?.refresh_token;
+    const token = req.cookies?.refreshToken;
 
     console.log(req.cookies);
     if (!token) {

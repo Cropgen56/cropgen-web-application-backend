@@ -28,23 +28,34 @@ export function generateRefreshId() {
 export function setRefreshCookie(res, refreshToken) {
   const cookieOptions = {
     httpOnly: true,
-    secure: false,
-    sameSite: "Lax",
+    secure: true,
+    sameSite: "None",
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: "/",
   };
+  console.log("Setting Cookie:", {
+    name: REFRESH_COOKIE_NAME,
+    options: cookieOptions,
+  });
   res.cookie(REFRESH_COOKIE_NAME, refreshToken, cookieOptions);
 }
 
 export function clearRefreshCookie(res) {
   res.clearCookie(REFRESH_COOKIE_NAME, {
     httpOnly: true,
-    secure: false,
-    sameSite: "Lax",
+    secure: true,
+    sameSite: "None",
     path: "/",
   });
 }
 
 export function verifyRefreshToken(token) {
-  return jwt.verify(token, REFRESH_SECRET);
+  try {
+    const decoded = jwt.verify(token, REFRESH_SECRET);
+    console.log("Verified Token:", decoded); // Debug log
+    return decoded;
+  } catch (err) {
+    console.error("Token Verification Error:", err.message);
+    throw err;
+  }
 }

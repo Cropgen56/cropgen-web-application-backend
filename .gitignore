@@ -1,6 +1,7 @@
 # Node.js dependencies
 tests/
 node_modules/
+src/certs/
 
 # Logs
 logs/
