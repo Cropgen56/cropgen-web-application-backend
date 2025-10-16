@@ -3,7 +3,6 @@ import {
   signin,
   getAllUsers,
   getUserById,
-  googleLogin,
   deleteUserById,
   updateUserById,
   deleteUserByEmail,
@@ -15,15 +14,16 @@ import {
   forgotPassword,
   resetPassword,
   getUser,
-  completeProfile,
-  logoutHandler,
 } from "../controllers/authController.js";
 
 import {
   requestOtp,
   verifyOtp,
   refreshTokenHandler,
+  completeProfile,
   cropydealsRegisterLogin,
+  logoutHandler,
+  loginWithGoogleWeb,
 } from "../controllers/authcontroller/index.js";
 
 import { requireAuth } from "../middleware/authMiddleware.js";
@@ -33,10 +33,8 @@ import {
   authorizeRoles,
   checkApiKey,
 } from "../middleware/authMiddleware.js";
-const router = express.Router();
 
-// login with google routes web application
-router.post("/google", googleLogin);
+const router = express.Router();
 
 // login with google mobile application
 router.post("/google-mobile", googleLoginMobile);
@@ -90,6 +88,8 @@ router.post("/verify", verifyOtp);
 router.post("/complete-profile", requireAuth, completeProfile);
 router.post("/refresh", refreshTokenHandler);
 router.post("/logout", logoutHandler);
+// login with google routes web application
+router.post("/google", loginWithGoogleWeb);
 
 // cropydeals register login api
 router.post("/cropydeal-register-login", cropydealsRegisterLogin);

@@ -4,7 +4,7 @@ import {
   signRefreshToken,
   generateRefreshId,
   setRefreshCookie,
-} from "../../utils/auth.utils.js";
+} from "../../utils/authUtils.js";
 
 const User = mongoose.model("User");
 const Organization = mongoose.model("Organization");

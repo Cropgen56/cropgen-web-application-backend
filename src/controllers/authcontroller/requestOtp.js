@@ -1,6 +1,7 @@
 import User from "../../models/usersModel.js";
 import { sendBasicEmail } from "../../config/sesClient.js";
-import { htmlOtp, genOtp, hash } from "../../utils/auth.js";
+import { genOtp, hash } from "../../utils/authUtils.js";
+import { htmlOtp } from "../../utils/emailTemplate.js";
 
 export const requestOtp = async (req, res) => {
   try {

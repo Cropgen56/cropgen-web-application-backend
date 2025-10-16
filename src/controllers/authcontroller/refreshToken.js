@@ -6,13 +6,12 @@ import {
   generateRefreshId,
   signRefreshToken,
   setRefreshCookie,
-} from "../../utils/auth.utils.js";
+} from "../../utils/authUtils.js";
 
 export const refreshTokenHandler = async (req, res) => {
   try {
     const token = req.cookies?.refreshToken;
 
-    console.log(req.cookies);
     if (!token) {
       return res
         .status(401)

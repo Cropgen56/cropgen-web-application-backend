@@ -2,11 +2,9 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import https from "https";
 import http from "http";
-import fs from "fs";
-import path from "path";
 import { fileURLToPath } from "url";
+import path from "path";
 
 import { connectToDatabase } from "./src/config/db.js";
 import authRoutes from "./src/routes/authRoutes.js";
@@ -39,7 +37,6 @@ const allowedOrigins = [
   // Local dev (HTTP and HTTPS)
   "http://localhost:3000",
   "http://localhost:5173",
-  "https://localhost:3000",
   NODE_ENV === "development" ? "https://localhost:3000" : undefined,
   NODE_ENV === "development" ? "https://localhost:5173" : undefined,
   NODE_ENV === "development" ? "https://localhost:7070" : undefined,
@@ -47,9 +44,9 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: function (origin, callback) {
-    console.log("Request Origin:", origin); // Debug log for origin
+    // console.log("Request Origin:", origin);
     if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, origin || allowedOrigins[0]); // Return exact origin
+      callback(null, origin || allowedOrigins[0]);
     } else {
       console.error(`Blocked origin: ${origin}`);
       callback(new Error("Not allowed by CORS"));
@@ -64,7 +61,7 @@ const corsOptions = {
     "X-Requested-With",
   ],
   optionsSuccessStatus: 204,
-  exposedHeaders: ["Set-Cookie"], // Ensure Set-Cookie is exposed
+  exposedHeaders: ["Set-Cookie"],
 };
 
 // Apply middleware
@@ -72,14 +69,6 @@ app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
-
-// Middleware to log response headers for debugging
-app.use((req, res, next) => {
-  res.on("finish", () => {
-    console.log("Response Headers:", res.getHeaders());
-  });
-  next();
-});
 
 // Routes
 app.use("/v1/api/auth", authRoutes);
@@ -92,40 +81,22 @@ app.use("/v1/api/email", emailRoutes);
 app.use("/v1/api/subscription", subscriptionRoutes);
 app.use("/v1/api/user-subscriptions", userSubscriptionRoutes);
 
-app.get("/v1/api/test-cookies", (req, res) => {
-  console.log("Received Cookies:", req.cookies);
-  res.json({ cookies: req.cookies });
-});
-
 // Health check
 app.get("/health", (req, res) => {
-  res.send("Server is up");
+  return res.status(200).json({
+    status: true,
+    message: "server is good and running ",
+    cookies: req.cookies,
+  });
 });
 
-// Start server (HTTPS for development, HTTP for production)
+// Start server
 const startServer = async () => {
   try {
     await connectToDatabase();
-
-    if (NODE_ENV === "development") {
-      // Load SSL certificates for HTTPS
-      const options = {
-        key: fs.readFileSync(
-          path.join(__dirname, "src/certs/localhost+2-key.pem")
-        ),
-        cert: fs.readFileSync(
-          path.join(__dirname, "src/certs/localhost+2.pem")
-        ),
-      };
-      https.createServer(options, app).listen(PORT, "0.0.0.0", () => {
-        console.log(`✅ HTTPS Server running at https://localhost:${PORT}`);
-      });
-    } else {
-      // Use HTTP for production
-      http.createServer(app).listen(PORT, "0.0.0.0", () => {
-        console.log(`✅ HTTP Server running at http://localhost:${PORT}`);
-      });
-    }
+    http.createServer(app).listen(PORT, "0.0.0.0", () => {
+      console.log(`✅ HTTP Server running at http://localhost:${PORT}`);
+    });
   } catch (error) {
     console.error("Server failed to start:", error.message);
     process.exit(1);

@@ -1,29 +1,3 @@
-import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
-import Organization from "../models/organizationModel.js";
-
-export const hash = (s) => bcrypt.hash(s, 10);
-export const compare = (s, h) => bcrypt.compare(s, h);
-
-export const genOtp = () => String(Math.floor(100000 + Math.random() * 900000));
-
-export const resolveOrganizationByCode = async (codeRaw) => {
-  const code =
-    codeRaw && String(codeRaw).trim() !== ""
-      ? String(codeRaw).toUpperCase().trim()
-      : "CROPGEN";
-
-  const org = await Organization.findOne({ organizationCode: code });
-
-  if (!org) {
-    const err = new Error(`Organization '${code}' not found.`);
-    err.status = 404;
-    throw err;
-  }
-
-  return { org, orgCode: code };
-};
-
 // otp verification email template
 
 export const htmlOtp = (otp) => `<!DOCTYPE html>
@@ -154,7 +128,7 @@ export const htmlOtp = (otp) => `<!DOCTYPE html>
 `;
 
 // Welcome email template
-export const htmlWelcome = () => `<!DOCTYPE html>
+export const htmlWelcome = (firstName) => `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -162,43 +136,47 @@ export const htmlWelcome = () => `<!DOCTYPE html>
   <title>Welcome to CropGen</title>
 </head>
 <body style="margin:0; padding:0; background:#f3f4f6; font-family:Arial,Helvetica,sans-serif;">
-  <div style="width:100%;  display:flex; justify-content:center; padding:24px 0;">
-    <div style="max-width:640px; width:100%; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,0.08);">
-      
-      <!-- Header -->
-      <div style="background:#246B27; text-align:center; padding:24px; color:#fff;">
-        <div style="display:inline-flex; align-items:center; gap:8px;">
-          <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/logo1.png" alt="CropGen Logo" style="vertical-align:middle; width:36px; border:0; outline:none;" />
-          <span style="font-size:20px; font-weight:600;  vertical-align:middle;">CropGen</span>
-        </div>
-        <div style="border-top:1px solid #d1d5db; width:150px; margin:12px auto;"></div>
-        <h2 style="font-size:22px; font-weight:700; margin:0; margin-top:12px;">Welcome To CropGen</h2>
-      </div>
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#f3f4f6; padding:24px 0;">
+    <tr>
+      <td align="center">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:640px; width:100%; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,0.08); box-sizing:border-box; margin:0 auto;">
+          <tr>
+            <td>
+              <!-- Header -->
+              <div style="background:#246B27; text-align:center; padding:24px; color:#fff;">
+                <div style="display:inline-flex; align-items:center; gap:8px;">
+                  <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/logo1.png" alt="CropGen Logo" style="vertical-align:middle; width:36px; border:0; outline:none;" />
+                  <span style="font-size:20px; font-weight:600; vertical-align:middle;">CropGen</span>
+                </div>
+                <div style="border-top:1px solid #d1d5db; width:150px; margin:12px auto;"></div>
+                <h2 style="font-size:22px; font-weight:700; margin:0; margin-top:12px;">Welcome To CropGen</h2>
+              </div>
 
-      <!-- Body -->
-      <div style="padding:40px 32px; text-align:center; color:#374151;">
-        <h1 style="font-size:28px; font-weight:700; margin:0 0 16px 0;">Hi there, Farmer!</h1>
-        <p style="font-size:16px; line-height:24px; margin:0 0 16px 0;">Thank you for joining CropGen. Let’s get started with smarter farming insights tailored just for you.</p>
-        <p style="font-size:16px; line-height:24px; margin:0 0 16px 0;">You’ll experience the future of farming — powered by AI, satellite insights, and smart recommendations tailored just for your fields.</p>
-        <a href="https://app.cropgenapp.com/login" style="display:inline-block; background:#345F11; color:#fff; font-weight:600; font-size:16px; padding:14px 28px; border-radius:6px; text-decoration:none; margin-bottom:24px;">Get Started</a>
-        <p style="font-size:14px; color:#246B27 ;line-height:20px; margin:0 0 20px 0;">Need help setting up your account? Our Customer Services team is here to assist you. We’re excited to grow with you 🌱</p>
-        
-        <br>
-        <br>
-        
-                <p style="font-size:18px; font-weight:600; line-height:24px;  margin:0 0 16px 0;">CropGen</p>
-        <p style="font-weight:600; color:#111827; margin:4px 0 0 0;">Smarter Farming Starts Here.</p>
-      </div>
+              <!-- Body -->
+              <div style="padding:40px 32px; text-align:center; color:#374151;">
+                <h1 style="font-size:28px; font-weight:700; margin:0 0 16px 0;">Hi there, ${firstName}!</h1>
+                <p style="font-size:16px; line-height:24px; margin:0 0 16px 0;">Thank you for joining CropGen. Let’s get started with smarter farming insights tailored just for you.</p>
+                <p style="font-size:16px; line-height:24px; margin:0 0 16px 0;">You’ll experience the future of farming — powered by AI, satellite insights, and smart recommendations tailored just for your fields.</p>
+                <a href="https://app.cropgenapp.com/login" style="display:inline-block; background:#345F11; color:#fff; font-weight:600; font-size:16px; padding:14px 28px; border-radius:6px; text-decoration:none; margin-bottom:24px;">Get Started</a>
+                <p style="font-size:14px; color:#246B27; line-height:20px; margin:0 0 20px 0;">Need help setting up your account? Our Customer Services team is here to assist you. We’re excited to grow with you 🌱</p>
+                <br>
+                <br>
+                <p style="font-size:18px; font-weight:600; line-height:24px; margin:0 0 16px 0;">CropGen</p>
+                <p style="font-weight:600; color:#111827; margin:4px 0 0 0;">Smarter Farming Starts Here.</p>
+              </div>
 
-      <!-- Footer -->
-      <div style="background:#246B27; text-align:center; padding:16px;">
-        <a href="https://www.cropgenapp.com/privacy-policy" style="color:#fff; text-decoration:underline; margin:0 12px; font-size:13px;">Privacy Policy</a>
-        <a href="https://www.cropgenapp.com/terms-conditions" style="color:#fff; text-decoration:underline; margin:0 12px; font-size:13px;">Terms & Conditions</a>
-        <a href="https://www.cropgenapp.com/contact" style="color:#fff; text-decoration:underline; margin:0 12px; font-size:13px;">Contact Us</a>
-      </div>
-
-    </div>
-  </div>
+              <!-- Footer -->
+              <div style="background:#246B27; text-align:center; padding:16px;">
+                <a href="https://www.cropgenapp.com/privacy-policy" style="color:#fff; text-decoration:underline; margin:0 12px; font-size:13px;">Privacy Policy</a>
+                <a href="https://www.cropgenapp.com/terms-conditions" style="color:#fff; text-decoration:underline; margin:0 12px; font-size:13px;">Terms & Conditions</a>
+                <a href="https://www.cropgenapp.com/contact" style="color:#fff; text-decoration:underline; margin:0 12px; font-size:13px;">Contact Us</a>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>
 `;
@@ -212,46 +190,50 @@ export const htmlWelcomeBack = (email) => `<!DOCTYPE html>
   <title>Welcome Back - CropGen</title>
 </head>
 <body style="margin:0; padding:0; background:#f3f4f6; font-family:Arial,Helvetica,sans-serif;">
-  <div style="width:100%; display:flex; justify-content:center; padding:24px 0;">
-    <div style="max-width:640px; width:100%; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,0.08);">
-      
-      <!-- Header -->
-      <div style="background:#246B27; text-align:center; padding:24px; color:#fff;">
-        <div style="display:inline-flex; align-items:center; gap:8px;">
-          <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/logo1.png" alt="CropGen Logo" style="vertical-align:middle; width:36px; border:0; outline:none;" />
-          <span style="font-size:20px; font-weight:600;  vertical-align:middle;">CropGen</span>
-        </div>
-        <div style="border-top:1px solid #d1d5db; width:150px; margin:12px auto;"></div>
-        <h2 style="font-size:22px; font-weight:700; margin:0; margin-top:12px;">Welcome Back</h2>
-      </div>
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#f3f4f6; padding:24px 0;">
+    <tr>
+      <td align="center">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:640px; width:100%; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,0.08); box-sizing:border-box; margin:0 auto;">
+          <tr>
+            <td>
+              <!-- Header -->
+              <div style="background:#246B27; text-align:center; padding:24px; color:#fff;">
+                <div style="display:inline-flex; align-items:center; gap:8px;">
+                  <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/logo1.png" alt="CropGen Logo" style="vertical-align:middle; width:36px; border:0; outline:none;" />
+                  <span style="font-size:20px; font-weight:600; vertical-align:middle;">CropGen</span>
+                </div>
+                <div style="border-top:1px solid #d1d5db; width:150px; margin:12px auto;"></div>
+                <h2 style="font-size:22px; font-weight:700; margin:0; margin-top:12px;">Welcome Back</h2>
+              </div>
 
-      <!-- Body -->
-      <div style="padding:40px 32px; text-align:center; color:#374151;">
-        <h1 style="font-size:28px; font-weight:700; margin:0 0 16px 0;">Hello again!</h1>
-        <p style="font-size:16px; line-height:24px; margin:0 0 16px 0;">
-          We’re glad to see you back, <strong>${email}</strong>. Continue exploring your farm insights and smarter farming solutions below.
-        </p>
-        <a href="https://app.cropgenapp.com/login" style="display:inline-block; background:#345F11; color:#fff; font-weight:600; font-size:16px; padding:14px 28px; border-radius:6px; text-decoration:none; margin-bottom:24px;">Go to Dashboard</a>
-        <br>
+              <!-- Body -->
+              <div style="padding:40px 32px; text-align:center; color:#374151;">
+                <h1 style="font-size:28px; font-weight:700; margin:0 0 16px 0;">Hello again!</h1>
+                <p style="font-size:16px; line-height:24px; margin:0 0 16px 0;">
+                  We’re glad to see you back, <strong>${email}</strong>. Continue exploring your farm insights and smarter farming solutions below.
+                </p>
+                <a href="https://app.cropgenapp.com/cropgen-analytics" style="display:inline-block; background:#345F11; color:#fff; font-weight:600; font-size:16px; padding:14px 28px; border-radius:6px; text-decoration:none; margin-bottom:24px;">Go to Dashboard</a>
+                <br>
+                <p style="font-size:16px; color:#246B27; line-height:24px; margin:0 0 16px 0;">Need help accessing your account? Don’t hesitate to contact Customer Services.</p>
+                <p style="font-size:16px; color:#246B27; font-weight:600; line-height:24px; margin:0 0 16px 0;">Happy Farming!</p>
+                <br>
+                <br>
+                <p style="font-size:18px; font-weight:600; line-height:24px; margin:0 0 16px 0;">CropGen</p>
+                <p style="font-weight:600; color:#111827; margin:4px 0 0 0;">Smarter Farming Starts Here.</p>
+              </div>
 
-     
-        <p style="font-size:16px;  color:#246B27 ; line-height:24px; margin:0 0 16px 0;">Need help accessing your account? Don’t hesitate to contact Customer Services.</p>
-        <p style="font-size:16px; color:#246B27 ;  font-weight:600; line-height:24px; margin:0 0 16px 0;">Happy Farming!</p>
-        <br>
-        <br>
-        <p style="font-size:18px; font-weight:600; line-height:24px;  margin:0 0 16px 0;">CropGen</p>
-        <p style="font-weight:600; color:#111827; margin:4px 0 0 0;">Smarter Farming Starts Here.</p>
-      </div>
-
-      <!-- Footer -->
-      <div style="background:#246B27; text-align:center; padding:16px;">
-        <a href="https://www.cropgenapp.com/privacy-policy" style="color:#fff; text-decoration:underline; margin:0 12px; font-size:13px;">Privacy Policy</a>
-        <a href="https://www.cropgenapp.com/terms-conditions" style="color:#fff; text-decoration:underline; margin:0 12px; font-size:13px;">Terms & Conditions</a>
-        <a href="https://www.cropgenapp.com/contact" style="color:#fff; text-decoration:underline; margin:0 12px; font-size:13px;">Contact Us</a>
-      </div>
-
-    </div>
-  </div>
+              <!-- Footer -->
+              <div style="background:#246B27; text-align:center; padding:16px;">
+                <a href="https://www.cropgenapp.com/privacy-policy" style="color:#fff; text-decoration:underline; margin:0 12px; font-size:13px;">Privacy Policy</a>
+                <a href="https://www.cropgenapp.com/terms-conditions" style="color:#fff; text-decoration:underline; margin:0 12px; font-size:13px;">Terms & Conditions</a>
+                <a href="https://www.cropgenapp.com/contact" style="color:#fff; text-decoration:underline; margin:0 12px; font-size:13px;">Contact Us</a>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>
 `;

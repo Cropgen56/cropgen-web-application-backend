@@ -4,8 +4,9 @@ import {
   signAccessToken,
   signRefreshToken,
   setRefreshCookie,
-} from "../../utils/auth.utils.js";
-import { resolveOrganizationByCode, htmlWelcome } from "../../utils/auth.js";
+  resolveOrganizationByCode,
+} from "../../utils/authUtils.js";
+import { htmlWelcome } from "../../utils/emailTemplate.js";
 
 export const completeProfile = async (req, res) => {
   try {

@@ -4,12 +4,14 @@ import {
   signAccessToken,
   signRefreshToken,
   setRefreshCookie,
-} from "../../utils/auth.utils.js";
-import { htmlWelcomeBack, compare } from "../../utils/auth.js";
+  compare,
+} from "../../utils/authUtils.js";
+import { htmlWelcomeBack } from "../../utils/emailTemplate.js";
 
 export const verifyOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
+
     if (!email || !otp)
       return res
         .status(400)
