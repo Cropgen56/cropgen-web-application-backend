@@ -15,7 +15,7 @@ export const subscriptionPlanSchema = Joi.object({
   maxUsers: Joi.number().integer().min(1).default(1),
   isTrial: Joi.boolean().default(false),
   trialDays: Joi.number().integer().min(0).default(0),
-  pricing: Joi.array().items(pricingSchema).min(1).required(),
+  pricing: Joi.array().items(pricingSchema).min(1),
   features: Joi.object({
     graphHistoricalData: Joi.boolean().default(false),
     satelliteCropMonitoring: Joi.boolean().default(false),

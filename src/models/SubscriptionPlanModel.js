@@ -17,7 +17,12 @@ const PricingSchema = new mongoose.Schema({
 
 const SubscriptionPlanSchema = new mongoose.Schema({
   name: { type: String, required: true }, // "Free Trial", "Basic", ...
-  slug: { type: String, required: true, unique: true }, // "free_trial", "basic", etc.
+  slug: {
+    type: String,
+    enum: ["basic", "free_trial"],
+    required: true,
+    unique: true,
+  }, // "free_trial", "basic", etc.
   description: { type: String },
 
   maxUsers: { type: Number, default: 1 }, // allowed user seats (e.g., team size)

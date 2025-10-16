@@ -19,6 +19,7 @@ export const createUserSubscription = async (req, res) => {
     const { error } = userSubscriptionSchema.validate(req.body, {
       abortEarly: false,
     });
+
     if (error) {
       return res.status(400).json({
         success: false,
@@ -63,7 +64,7 @@ export const createUserSubscription = async (req, res) => {
       endDate = new Date(startDate.setMonth(startDate.getMonth() + 1));
     } else if (billingCycle === "yearly") {
       endDate = new Date(startDate.setFullYear(startDate.getFullYear() + 1));
-    } else if (billingCycle === "trial") {
+    } else if (billingCycle === "free_trial") {
       endDate = new Date(
         startDate.setDate(startDate.getDate() + plan.trialDays)
       );
@@ -113,6 +114,7 @@ export const createUserSubscription = async (req, res) => {
       },
     });
   } catch (error) {
+    // console.log(error);
     res.status(500).json({
       success: false,
       message: "Error creating subscription",

@@ -37,11 +37,11 @@ const UserSubscriptionSchema = new mongoose.Schema({
     default: "pending",
   },
   paymentId: {
-    type: String, // Razorpay payment ID or equivalent
+    type: String,
     default: null,
   },
   orderId: {
-    type: String, // Razorpay order ID or equivalent
+    type: String,
     default: null,
   },
   startDate: {
@@ -49,7 +49,7 @@ const UserSubscriptionSchema = new mongoose.Schema({
     default: Date.now,
   },
   endDate: {
-    type: Date, // Calculated based on billingCycle
+    type: Date,
   },
   active: {
     type: Boolean,
