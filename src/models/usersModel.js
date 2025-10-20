@@ -44,27 +44,6 @@ const userSchema = new Schema(
       type: Boolean,
       required: true,
     },
-    subscriptionStatus: {
-      type: String,
-      enum: ["active", "inactive", "pending", "cancelled"],
-      default: "inactive",
-    },
-    isPaid: {
-      type: Boolean,
-      default: false,
-    },
-    razorpayCustomerId: {
-      type: String,
-      default: null,
-    },
-    subscriptionId: {
-      type: String,
-      default: null,
-    },
-    subscriptionEndDate: {
-      type: Date,
-      default: null,
-    },
     otp: {
       type: String,
       default: null,

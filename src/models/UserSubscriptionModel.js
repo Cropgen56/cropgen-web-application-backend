@@ -1,68 +1,80 @@
+// models/UserSubscriptionModel.js
 import mongoose from "mongoose";
 
-const UserSubscriptionSchema = new mongoose.Schema({
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
+const { Schema } = mongoose;
+
+const UserSubscriptionSchema = new Schema(
+  {
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+    fieldId: {
+      type: Schema.Types.ObjectId,
+      ref: "FarmField",
+      required: true,
+      index: true,
+    },
+
+    planId: {
+      type: Schema.Types.ObjectId,
+      ref: "SubscriptionPlan",
+      required: true,
+    },
+
+    // Business data
+    hectares: { type: Number, min: 0, required: true },
+    currency: { type: String, enum: ["INR", "USD"], required: true },
+    billingCycle: {
+      type: String,
+      enum: ["monthly", "yearly", "trial"],
+      required: true,
+    },
+    amountMinor: { type: Number, min: 0, required: true },
+
+    // Legacy order info (if you still use Orders for single payment)
+    orderId: { type: String, default: null },
+
+    // Razorpay subscription fields
+    razorpayPlanId: { type: String, default: null }, // plan_...
+    razorpaySubscriptionId: { type: String, default: null }, // sub_...
+    razorpayCustomerId: { type: String, default: null }, // contact_...
+    razorpayLastInvoiceId: { type: String, default: null }, // invoice_...
+
+    // lifecycle and bookkeeping
+    status: {
+      type: String,
+      enum: [
+        "pending",
+        "active",
+        "cancelled",
+        "paused",
+        "completed",
+        "expired",
+      ],
+      default: "pending",
+      index: true,
+    },
+    active: { type: Boolean, default: false, index: true },
+
+    startDate: { type: Date, default: Date.now },
+    nextBillingAt: { type: Date, default: null },
+    endDate: { type: Date, default: null },
+
+    // optional notes for auditing / mapping
+    notes: { type: Schema.Types.Mixed, default: {} },
   },
-  planId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "SubscriptionPlan",
-    required: true,
-  },
-  hectares: {
-    type: Number,
-    min: [0, "Hectares cannot be negative"],
-    required: [true, "Hectares is required"],
-  },
-  currency: {
-    type: String,
-    enum: ["INR", "USD"],
-    required: true,
-  },
-  billingCycle: {
-    type: String,
-    enum: ["monthly", "yearly", "trial"],
-    required: true,
-  },
-  amountMinor: {
-    type: Number,
-    min: [0, "Amount cannot be negative"],
-    required: true,
-  },
-  paymentStatus: {
-    type: String,
-    enum: ["pending", "completed", "failed", "refunded"],
-    default: "pending",
-  },
-  paymentId: {
-    type: String,
-    default: null,
-  },
-  orderId: {
-    type: String,
-    default: null,
-  },
-  startDate: {
-    type: Date,
-    default: Date.now,
-  },
-  endDate: {
-    type: Date,
-  },
-  active: {
-    type: Boolean,
-    default: true,
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
+  {
+    timestamps: true,
+  }
+);
+
+// ensure one active subscription per field (optional; remove if you allow multiple)
+UserSubscriptionSchema.index(
+  { fieldId: 1, active: 1 },
+  { unique: false } // set true if you enforce strict uniqueness for active subscriptions
+);
 
 export default mongoose.model("UserSubscription", UserSubscriptionSchema);
