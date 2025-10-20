@@ -37,9 +37,6 @@ const allowedOrigins = [
   // Local dev (HTTP and HTTPS)
   "http://localhost:3000",
   "http://localhost:5173",
-  NODE_ENV === "development" ? "https://localhost:3000" : undefined,
-  NODE_ENV === "development" ? "https://localhost:5173" : undefined,
-  NODE_ENV === "development" ? "https://localhost:7070" : undefined,
 ].filter(Boolean);
 
 const corsOptions = {

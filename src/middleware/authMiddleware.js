@@ -14,6 +14,7 @@ const isAuthenticated = (req, res, next) => {
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
+      console.log(err);
       return res.status(403).json({ message: "Invalid or expired token." });
     }
 
@@ -54,7 +55,8 @@ const requireAuth = (req, res, next) => {
     if (!token)
       return res.status(401).json({ success: false, message: "Unauthorized" });
     const payload = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-    req.auth = payload; // { id, email, ... }
+
+    req.auth = payload;
     next();
   } catch {
     return res.status(401).json({ success: false, message: "Invalid token" });

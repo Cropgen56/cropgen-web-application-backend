@@ -240,26 +240,22 @@ export const resetPassword = async (req, res) => {
 export const getAllUsers = async (req, res) => {
   try {
     const { role, organization } = req.user;
+    const { page = 1, limit = 10 } = req.query;
 
-    let users;
+    const query = role === "client" ? { organization } : {};
+    const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    if (role === "admin" || role === "developer") {
-      users = await User.find().populate({
+    // Fetch users with pagination
+    const users = await User.find(query)
+      .populate({
         path: "organization",
         select: "organizationCode",
-      });
-    } else if (role === "client") {
-      users = await User.find({ organization: organization }).populate({
-        path: "organization",
-        select: "organizationCode",
-      });
-    } else {
-      // Other users: Restrict access
-      return res.status(403).json({
-        success: false,
-        message: "Access denied. You do not have permission to view users!",
-      });
-    }
+      })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // Get total count for pagination metadata
+    const totalUsers = await User.countDocuments(query);
 
     // Check if users exist
     if (!users || users.length === 0) {
@@ -269,10 +265,24 @@ export const getAllUsers = async (req, res) => {
       });
     }
 
+    // Check role-based access
+    if (role !== "admin" && role !== "developer" && role !== "client") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. You do not have permission to view users!",
+      });
+    }
+
     res.status(200).json({
       success: true,
       message: "Users fetched successfully.",
-      users: users,
+      users,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(totalUsers / limit),
+        totalUsers,
+        limit: parseInt(limit),
+      },
     });
   } catch (error) {
     console.error("Error fetching users:", error);
