@@ -1,9 +1,9 @@
-// models/UserSubscriptionModel.js
+// models/subscriptionModel.js (renamed for consistency with ref in Payment)
 import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
-const subscriptionModel = new Schema(
+const subscriptionSchema = new Schema(
   {
     userId: {
       type: Schema.Types.ObjectId,
@@ -40,7 +40,7 @@ const subscriptionModel = new Schema(
     // Razorpay subscription fields
     razorpayPlanId: { type: String, default: null }, // plan_... (specific pricing's plan ID used for this sub)
     razorpaySubscriptionId: { type: String, default: null }, // sub_...
-    razorpayCustomerId: { type: String, default: null }, // contact_...
+    razorpayCustomerId: { type: String, default: null }, // cust_... (set after first payment)
     razorpayLastInvoiceId: { type: String, default: null }, // invoice_...
 
     // lifecycle and bookkeeping
@@ -72,9 +72,9 @@ const subscriptionModel = new Schema(
 );
 
 // ensure one active subscription per field (optional; remove if you allow multiple)
-subscriptionModel.index(
+subscriptionSchema.index(
   { fieldId: 1, active: 1 },
   { unique: false } // set true if you enforce strict uniqueness for active subscriptions
 );
 
-export default mongoose.model("subscriptionModel", subscriptionModel);
+export default mongoose.model("UserSubscription", subscriptionSchema);

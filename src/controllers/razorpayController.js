@@ -89,7 +89,9 @@ export const createSubscription = async (req, res) => {
       });
     }
 
-    const totalAmountMinor = pricing.amountMinor * hectares;
+    // Ensure integer quantity for Razorpay (ceil for fractional hectares)
+    const quantity = Math.ceil(parseFloat(hectares));
+    const totalAmountMinor = Math.round(pricing.amountMinor * quantity);
 
     // Create initial UserSubscription in DB (pending)
     const userSubscription = await subscriptionModel.create({
@@ -116,13 +118,30 @@ export const createSubscription = async (req, res) => {
       });
     }
 
+    // Validate plan exists and is active via API
+    try {
+      const planDetails = await razorpay.plans.fetch(razorpayPlanId);
+      if (planDetails.status !== "active") {
+        return res.status(400).json({
+          success: false,
+          message: `Razorpay Plan ${razorpayPlanId} is not active.`,
+        });
+      }
+    } catch (planErr) {
+      console.error(`Plan fetch error for ${razorpayPlanId}:`, planErr);
+      return res.status(400).json({
+        success: false,
+        message: `Invalid Razorpay Plan ID: ${razorpayPlanId}`,
+      });
+    }
+
     // Calculate total_count for ~100 years (Razorpay max; acts as "infinite")
     const totalCount = billingCycle === "yearly" ? 100 : 1200; // 100 years yearly or monthly (12*100)
 
     // Optionally set start_at to now or future epoch (seconds). We'll set start_at = now so user pays immediately via Checkout.
     const payload = {
       plan_id: razorpayPlanId,
-      quantity: hectares, // Per-unit scaling (e.g., hectares * per-hectare amount)
+      quantity, // Integer quantity (ceiled hectares)
       total_count: totalCount, // Number of billing cycles (~100 years for "infinite")
       customer_notify: 1,
       // pass notes so webhook mapping is easy
@@ -159,10 +178,17 @@ export const createSubscription = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("createSubscription error:", err);
+    console.error("createSubscription full error:", {
+      message: err.message,
+      code: err.code,
+      description: err.description,
+      payload, // Log attempted payload for debug
+    });
+    const msg =
+      err.description || "Razorpay server error—check account activation.";
     return res
-      .status(500)
-      .json({ success: false, message: "Server error", error: err.message });
+      .status(err.code === "SERVER_ERROR" ? 503 : 500)
+      .json({ success: false, message: msg, razorpayCode: err.code });
   }
 };
 
@@ -256,6 +282,10 @@ export const verifyCheckout = async (req, res) => {
 export const razorpayWebhookHandler = async (req, res) => {
   try {
     const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    if (!secret) {
+      console.error("Webhook secret not configured");
+      return res.status(500).send("server config error");
+    }
     const signature = req.headers["x-razorpay-signature"];
     const body = req.body; // raw buffer if using bodyParser.raw()
 
@@ -271,6 +301,12 @@ export const razorpayWebhookHandler = async (req, res) => {
 
     const event = JSON.parse(body.toString());
     const eventName = event.event;
+    console.log("Webhook received:", {
+      event: eventName,
+      razorpaySubId:
+        event.payload?.subscription?.entity?.id ||
+        event.payload?.invoice?.entity?.subscription_id,
+    });
 
     // Helper: idempotently create Payment
     async function createPaymentIfNotExist({
@@ -290,6 +326,7 @@ export const razorpayWebhookHandler = async (req, res) => {
           providerPaymentId: providerPaymentId,
         });
         if (existing) {
+          console.log(`Payment ${providerPaymentId} already exists`);
           return existing;
         }
         const p = await Payment.create({
@@ -306,12 +343,15 @@ export const razorpayWebhookHandler = async (req, res) => {
           raw,
           note,
         });
+        console.log(`Created new payment ${providerPaymentId}`);
         return p;
       } catch (err) {
         // possible duplicate insert due to race; ignore if duplicate key
         if (err.code === 11000) {
+          console.log(`Duplicate payment ignored: ${providerPaymentId}`);
           return Payment.findOne({ provider: "razorpay", providerPaymentId });
         }
+        console.error("Payment creation error:", err);
         throw err;
       }
     }
@@ -331,11 +371,20 @@ export const razorpayWebhookHandler = async (req, res) => {
       if (subscriptionRecord) {
         subscriptionRecord.status =
           mapRazorpayStatus(sub.status) || subscriptionRecord.status;
-        // update nextBillingAt from sub.current_start or next_retry_at if available (check payload)
+        // Update customer ID if available (set after first payment)
+        if (sub.customer_id) {
+          subscriptionRecord.razorpayCustomerId = sub.customer_id;
+        }
+        // update nextBillingAt from sub.charge_at or next_retry_at if available (check payload)
         if (sub.charge_at) {
           subscriptionRecord.nextBillingAt = new Date(sub.charge_at * 1000);
+        } else if (sub.next_retry_at) {
+          subscriptionRecord.nextBillingAt = new Date(sub.next_retry_at * 1000);
         }
         await subscriptionRecord.save();
+        console.log(
+          `Updated subscription ${razorpaySubscriptionId} from ${eventName}`
+        );
       }
     }
 
@@ -371,6 +420,10 @@ export const razorpayWebhookHandler = async (req, res) => {
         subscriptionRecord.status = "active";
         subscriptionRecord.active = true;
         subscriptionRecord.razorpayLastInvoiceId = providerInvoiceId;
+        // Update customer ID from invoice if available
+        if (invoice.customer_id) {
+          subscriptionRecord.razorpayCustomerId = invoice.customer_id;
+        }
         // set nextBillingAt if invoice contains next retry or next charge date
         if (invoice.next_retry_at) {
           subscriptionRecord.nextBillingAt = new Date(
@@ -380,11 +433,13 @@ export const razorpayWebhookHandler = async (req, res) => {
           subscriptionRecord.nextBillingAt = new Date(invoice.end_at * 1000);
         }
         await subscriptionRecord.save();
+        console.log(
+          `Updated subscription ${providerSubscriptionId} from invoice.paid`
+        );
       }
     }
 
     if (eventName === "invoice.payment_failed") {
-      // Fixed: Remove duplicate
       const invoice = event.payload.invoice.entity;
       const providerInvoiceId = invoice.id;
       const providerSubscriptionId = invoice.subscription_id;
@@ -411,6 +466,9 @@ export const razorpayWebhookHandler = async (req, res) => {
         subscriptionRecord.status = "pending"; // or "paused" depending on your policy
         subscriptionRecord.active = false;
         await subscriptionRecord.save();
+        console.log(
+          `Marked subscription ${providerSubscriptionId} as pending due to failed payment`
+        );
       }
     }
 
@@ -425,6 +483,7 @@ export const razorpayWebhookHandler = async (req, res) => {
         subscriptionRecord.active = false;
         subscriptionRecord.endDate = new Date();
         await subscriptionRecord.save();
+        console.log(`Cancelled subscription ${sub.id}`);
       }
     }
 
@@ -449,12 +508,13 @@ export const razorpayWebhookHandler = async (req, res) => {
           });
       }
 
-      // fallback: try to find subscription via notes saved on subscription or earlier mapping
-      if (!subscriptionRecord) {
-        // Attempt to find by matching userSubscription notes (not guaranteed)
-        subscriptionRecord = await subscriptionModel.findOne({
-          "notes.razorpaySubscriptionId": payment.subscription_id,
-        });
+      // fallback: try to find subscription via notes saved on payment (from createSubscription notes)
+      if (!subscriptionRecord && payment.notes) {
+        // payment.notes has your custom notes: { userSubscriptionId: "..." }
+        const userSubId = payment.notes.userSubscriptionId;
+        if (userSubId) {
+          subscriptionRecord = await subscriptionModel.findById(userSubId);
+        }
       }
 
       // create Payment record
@@ -477,6 +537,9 @@ export const razorpayWebhookHandler = async (req, res) => {
         subscriptionRecord.status = "active";
         subscriptionRecord.active = true;
         await subscriptionRecord.save();
+        console.log(
+          `Updated subscription from payment.captured: ${subscriptionRecord.razorpaySubscriptionId}`
+        );
       }
     }
 
