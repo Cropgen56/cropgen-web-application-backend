@@ -6,7 +6,6 @@ import {
   deleteUserById,
   updateUserById,
   deleteUserByEmail,
-  googleLoginMobile,
   checkUser,
   signupWithFirebase,
   isUserExist,
@@ -24,6 +23,7 @@ import {
   cropydealsRegisterLogin,
   logoutHandler,
   loginWithGoogleWeb,
+  loginWithGoogleMobile,
 } from "../controllers/authcontroller/index.js";
 
 import { requireAuth } from "../middleware/authMiddleware.js";
@@ -35,9 +35,6 @@ import {
 } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
-
-// login with google mobile application
-router.post("/google-mobile", googleLoginMobile);
 
 // admin panel login route
 router.post("/signin", signin);
@@ -81,6 +78,7 @@ router.post("/signup/check-user", checkUser);
 router.post("/signup/mobile", signupWithFirebase);
 router.post("/login/is-exist", isUserExist);
 router.post("/login/mobile", loginWithPhone);
+router.post("/google-mobile", loginWithGoogleMobile);
 
 // web application login and the singup routes
 router.post("/otp", requestOtp);
@@ -88,7 +86,6 @@ router.post("/verify", verifyOtp);
 router.post("/complete-profile", requireAuth, completeProfile);
 router.post("/refresh", refreshTokenHandler);
 router.post("/logout", logoutHandler);
-// login with google routes web application
 router.post("/google", loginWithGoogleWeb);
 
 // cropydeals register login api

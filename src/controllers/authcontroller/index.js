@@ -5,3 +5,4 @@ export { refreshTokenHandler } from "./refreshToken.js";
 export { cropydealsRegisterLogin } from "./cropydealsRegisterLogin.js";
 export { logoutHandler } from "./logoutHandler.js";
 export { loginWithGoogleWeb } from "./loginWithGoogleWeb.js";
+export { loginWithGoogleMobile } from "./loginWithGoogleMobile.js";
