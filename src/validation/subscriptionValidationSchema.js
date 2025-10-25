@@ -6,6 +6,7 @@ const pricingSchema = Joi.object({
   billingCycle: Joi.string().valid("monthly", "yearly", "trial").required(),
   amountMinor: Joi.number().integer().min(0).required(),
   unit: Joi.string().valid("hectare", "user", "flat").default("hectare"),
+  razorpayPlanId: Joi.string().allow(null, ""), // Auto-generated, optional in input
 });
 
 export const subscriptionPlanSchema = Joi.object({

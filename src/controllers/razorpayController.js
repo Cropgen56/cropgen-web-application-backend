@@ -1,15 +1,27 @@
 // controllers/subscriptionController.js
 import Razorpay from "razorpay";
 import crypto from "crypto";
-import UserSubscription from "../models/UserSubscriptionModel.js";
+import subscriptionModel from "../models/subscriptionModel.js";
 import Payment from "../models/paymentModel.js";
-import SubscriptionPlan from "../models/SubscriptionPlanModel.js"; // adjust path if needed
+import SubscriptionPlan from "../models/subscriptionPlanModel.js";
 import FarmField from "../models/fieldModel.js";
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
+
+// Helper to map Razorpay subscription statuses to your enum
+function mapRazorpayStatus(razorpayStatus) {
+  const statusMap = {
+    created: "pending",
+    activated: "active",
+    processed: "active",
+    completed: "completed",
+    cancelled: "cancelled",
+  };
+  return statusMap[razorpayStatus] || razorpayStatus;
+}
 
 /**
  * POST /api/subscriptions/create
@@ -51,10 +63,36 @@ export const createSubscription = async (req, res) => {
       });
     }
 
+    // Handle free trial (skip Razorpay creation)
+    if (plan.isTrial) {
+      const userSubscription = await subscriptionModel.create({
+        userId,
+        fieldId,
+        planId,
+        hectares,
+        currency,
+        billingCycle,
+        amountMinor: 0, // Free
+        status: "active",
+        active: true,
+        startDate: new Date(),
+        endDate: new Date(Date.now() + plan.trialDays * 24 * 60 * 60 * 1000),
+        notes: { isTrial: true },
+      });
+      return res.status(201).json({
+        success: true,
+        message: "Trial subscription activated",
+        data: {
+          subscriptionRecordId: userSubscription._id,
+          isTrial: true,
+        },
+      });
+    }
+
     const totalAmountMinor = pricing.amountMinor * hectares;
 
     // Create initial UserSubscription in DB (pending)
-    const userSubscription = await UserSubscription.create({
+    const userSubscription = await subscriptionModel.create({
       userId,
       fieldId,
       planId,
@@ -67,22 +105,25 @@ export const createSubscription = async (req, res) => {
       notes: { migratedFromOrder: false },
     });
 
-    // Create Razorpay subscription
-    // Use razorpay plan id if available on SubscriptionPlan; otherwise you may need to create a plan via Razorpay API.
-    const razorpayPlanId = plan.razorpayPlanId; // ensure this exists; if not create plan in Razorpay dashboard or via API
+    // Use specific pricing's razorpayPlanId
+    const razorpayPlanId = pricing.razorpayPlanId;
     if (!razorpayPlanId) {
-      // fallback: respond with clear error telling admin to create plan or include plan creation flow
+      // fallback: respond with clear error telling admin to create plan
       return res.status(400).json({
         success: false,
         message:
-          "Razorpay Plan id not configured for this subscription plan. Create plan in Razorpay and set plan.razorpayPlanId.",
+          "Razorpay Plan id not configured for this pricing. Create via admin panel.",
       });
     }
+
+    // Calculate total_count for ~100 years (Razorpay max; acts as "infinite")
+    const totalCount = billingCycle === "yearly" ? 100 : 1200; // 100 years yearly or monthly (12*100)
 
     // Optionally set start_at to now or future epoch (seconds). We'll set start_at = now so user pays immediately via Checkout.
     const payload = {
       plan_id: razorpayPlanId,
-      total_count: 0, // 0 => infinite; change if you have fixed cycles
+      quantity: hectares, // Per-unit scaling (e.g., hectares * per-hectare amount)
+      total_count: totalCount, // Number of billing cycles (~100 years for "infinite")
       customer_notify: 1,
       // pass notes so webhook mapping is easy
       notes: {
@@ -99,7 +140,8 @@ export const createSubscription = async (req, res) => {
     userSubscription.razorpayPlanId = razorpayPlanId;
     userSubscription.razorpayCustomerId =
       razorpaySubscription.customer_id || null;
-    userSubscription.status = razorpaySubscription.status || "pending";
+    userSubscription.status =
+      mapRazorpayStatus(razorpaySubscription.status) || "pending";
     // Next billing time may be set by Razorpay invoice; leave nextBillingAt null until webhook provides invoice info
     await userSubscription.save();
 
@@ -160,7 +202,7 @@ export const verifyCheckout = async (req, res) => {
     }
 
     // find user subscription by razorpaySubscriptionId
-    const subscription = await UserSubscription.findOne({
+    const subscription = await subscriptionModel.findOne({
       razorpaySubscriptionId: razorpay_subscription_id,
     });
     if (!subscription) {
@@ -283,11 +325,12 @@ export const razorpayWebhookHandler = async (req, res) => {
       const sub = event.payload.subscription.entity;
       const razorpaySubscriptionId = sub.id;
 
-      const subscriptionRecord = await UserSubscription.findOne({
+      const subscriptionRecord = await subscriptionModel.findOne({
         razorpaySubscriptionId,
       });
       if (subscriptionRecord) {
-        subscriptionRecord.status = sub.status || subscriptionRecord.status;
+        subscriptionRecord.status =
+          mapRazorpayStatus(sub.status) || subscriptionRecord.status;
         // update nextBillingAt from sub.current_start or next_retry_at if available (check payload)
         if (sub.charge_at) {
           subscriptionRecord.nextBillingAt = new Date(sub.charge_at * 1000);
@@ -307,7 +350,7 @@ export const razorpayWebhookHandler = async (req, res) => {
       const amountMinor = invoice.amount_paid || invoice.amount;
       const currency = invoice.currency || null;
 
-      const subscriptionRecord = await UserSubscription.findOne({
+      const subscriptionRecord = await subscriptionModel.findOne({
         razorpaySubscriptionId: providerSubscriptionId,
       });
       // Create Payment record
@@ -340,15 +383,13 @@ export const razorpayWebhookHandler = async (req, res) => {
       }
     }
 
-    if (
-      eventName === "invoice.payment_failed" ||
-      eventName === "invoice.payment_failed"
-    ) {
+    if (eventName === "invoice.payment_failed") {
+      // Fixed: Remove duplicate
       const invoice = event.payload.invoice.entity;
       const providerInvoiceId = invoice.id;
       const providerSubscriptionId = invoice.subscription_id;
       const providerPaymentId = invoice.payment_id || null;
-      const subscriptionRecord = await UserSubscription.findOne({
+      const subscriptionRecord = await subscriptionModel.findOne({
         razorpaySubscriptionId: providerSubscriptionId,
       });
 
@@ -373,6 +414,20 @@ export const razorpayWebhookHandler = async (req, res) => {
       }
     }
 
+    if (eventName === "subscription.cancelled") {
+      // Added: Handle cancellation
+      const sub = event.payload.subscription.entity;
+      const subscriptionRecord = await subscriptionModel.findOne({
+        razorpaySubscriptionId: sub.id,
+      });
+      if (subscriptionRecord) {
+        subscriptionRecord.status = "cancelled";
+        subscriptionRecord.active = false;
+        subscriptionRecord.endDate = new Date();
+        await subscriptionRecord.save();
+      }
+    }
+
     if (eventName === "payment.captured" || eventName === "payment.failed") {
       const payment = event.payload.payment.entity;
       const providerPaymentId = payment.id;
@@ -389,7 +444,7 @@ export const razorpayWebhookHandler = async (req, res) => {
           .catch(() => null);
         const subId = invoice?.subscription_id || null;
         if (subId)
-          subscriptionRecord = await UserSubscription.findOne({
+          subscriptionRecord = await subscriptionModel.findOne({
             razorpaySubscriptionId: subId,
           });
       }
@@ -397,7 +452,7 @@ export const razorpayWebhookHandler = async (req, res) => {
       // fallback: try to find subscription via notes saved on subscription or earlier mapping
       if (!subscriptionRecord) {
         // Attempt to find by matching userSubscription notes (not guaranteed)
-        subscriptionRecord = await UserSubscription.findOne({
+        subscriptionRecord = await subscriptionModel.findOne({
           "notes.razorpaySubscriptionId": payment.subscription_id,
         });
       }

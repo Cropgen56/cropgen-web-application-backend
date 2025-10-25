@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
-const UserSubscriptionSchema = new Schema(
+const subscriptionModel = new Schema(
   {
     userId: {
       type: Schema.Types.ObjectId,
@@ -38,7 +38,7 @@ const UserSubscriptionSchema = new Schema(
     orderId: { type: String, default: null },
 
     // Razorpay subscription fields
-    razorpayPlanId: { type: String, default: null }, // plan_...
+    razorpayPlanId: { type: String, default: null }, // plan_... (specific pricing's plan ID used for this sub)
     razorpaySubscriptionId: { type: String, default: null }, // sub_...
     razorpayCustomerId: { type: String, default: null }, // contact_...
     razorpayLastInvoiceId: { type: String, default: null }, // invoice_...
@@ -72,9 +72,9 @@ const UserSubscriptionSchema = new Schema(
 );
 
 // ensure one active subscription per field (optional; remove if you allow multiple)
-UserSubscriptionSchema.index(
+subscriptionModel.index(
   { fieldId: 1, active: 1 },
   { unique: false } // set true if you enforce strict uniqueness for active subscriptions
 );
 
-export default mongoose.model("UserSubscription", UserSubscriptionSchema);
+export default mongoose.model("subscriptionModel", subscriptionModel);

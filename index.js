@@ -16,7 +16,7 @@ import cropRoutes from "./src/routes/cropRoutes.js";
 import emailRoutes from "./src/routes/emailRoutes.js";
 import "./src/config/firebaseConfig.js";
 import subscriptionRoutes from "./src/routes/subscriptionPlans.js";
-import userSubscriptionRoutes from "./src/routes/userSubscriptions.js";
+import razorpayRoutes from "./src/routes/razorpayRoutes.js";
 
 dotenv.config();
 
@@ -79,7 +79,7 @@ app.use("/v1/api/operation", operationRoutes);
 app.use("/v1/api/crop", cropRoutes);
 app.use("/v1/api/email", emailRoutes);
 app.use("/v1/api/subscription", subscriptionRoutes);
-app.use("/v1/api/user-subscriptions", userSubscriptionRoutes);
+app.use("/v1/api/user-subscriptions", razorpayRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
