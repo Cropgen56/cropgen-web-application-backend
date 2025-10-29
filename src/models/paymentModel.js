@@ -1,4 +1,4 @@
-// models/paymentModel.js
+// models/PaymentModel.js
 import mongoose from "mongoose";
 
 const { Schema } = mongoose;
@@ -8,7 +8,7 @@ const PaymentSchema = new Schema(
     userId: { type: Schema.Types.ObjectId, ref: "User", index: true },
     subscriptionId: {
       type: Schema.Types.ObjectId,
-      ref: "UserSubscription", // Fixed ref to match model name
+      ref: "UserSubscription",
       index: true,
     },
     fieldId: { type: Schema.Types.ObjectId, ref: "FarmField", index: true },

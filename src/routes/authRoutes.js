@@ -88,6 +88,7 @@ router.post("/verify", verifyOtp);
 router.post("/complete-profile", requireAuth, completeProfile);
 router.post("/refresh", refreshTokenHandler);
 router.post("/logout", logoutHandler);
+
 // login with google routes web application
 router.post("/google", loginWithGoogleWeb);
 

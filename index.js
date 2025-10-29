@@ -5,7 +5,7 @@ import cookieParser from "cookie-parser";
 import http from "http";
 import { fileURLToPath } from "url";
 import path from "path";
-
+import bodyParser from "body-parser";
 import { connectToDatabase } from "./src/config/db.js";
 import authRoutes from "./src/routes/authRoutes.js";
 import fieldRoutes from "./src/routes/fieldRoutes.js";
@@ -67,8 +67,25 @@ const corsOptions = {
 // Apply middleware
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
+
+app.use(
+  "/v1/api/user-subscriptions/webhook",
+  bodyParser.raw({ type: "application/json" })
+);
+
 app.use(express.json());
 app.use(cookieParser());
+
+app.use((req, res, next) => {
+  if (req.path === "/v1/api/user-subscriptions/webhook") {
+    console.log(
+      "🌐 Raw webhook request received:",
+      req.method,
+      req.headers["x-razorpay-event-id"]
+    );
+  }
+  next();
+});
 
 // Routes
 app.use("/v1/api/auth", authRoutes);
