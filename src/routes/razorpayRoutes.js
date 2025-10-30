@@ -8,6 +8,6 @@ import { isAuthenticated } from "../middleware/authMiddleware.js";
 const router = express.Router();
 
 router.post("/", isAuthenticated, createSubscription);
-router.post("/:id/verify", isAuthenticated, verifyCheckout);
+router.post("/verify", isAuthenticated, verifyCheckout);
 router.post("/webhook", razorpayWebhookHandler);
 export default router;
