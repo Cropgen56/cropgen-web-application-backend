@@ -1,6 +1,6 @@
 // controllers/razorpayController.js
 import Razorpay from "razorpay";
-import crypto from "crypto"; // ← FIXED: Import crypto
+import crypto from "crypto";
 import userSubscription from "../models/userSubscriptionModel.js";
 import Payment from "../models/paymentModel.js";
 import SubscriptionPlan from "../models/subscriptionPlanModel.js";
@@ -23,15 +23,23 @@ const mapStatus = (s) =>
 /**
  * CREATE SUBSCRIPTION (or trial)
  */
+// controllers/razorpayController.js
+
 export const createSubscription = async (req, res) => {
   try {
     const userId = req.user.id;
     const { planId, fieldId, hectares, billingCycle, currency } = req.body;
 
-    if (!planId || !fieldId || !hectares || !billingCycle || !currency) {
+    if (!planId || !fieldId || hectares == null || !billingCycle || !currency) {
       return res
         .status(400)
         .json({ success: false, message: "Missing fields" });
+    }
+
+    if (hectares <= 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Area must be > 0" });
     }
 
     const plan = await SubscriptionPlan.findById(planId).lean();
@@ -53,7 +61,7 @@ export const createSubscription = async (req, res) => {
         .json({ success: false, message: "Invalid pricing" });
     }
 
-    // TRIAL
+    // === TRIAL ===
     if (plan.isTrial) {
       const sub = await userSubscription.create({
         userId,
@@ -75,9 +83,8 @@ export const createSubscription = async (req, res) => {
       });
     }
 
-    // PAID
-    const amountMinor = pricing.amountMinor * hectares;
-    const totalCount = billingCycle === "yearly" ? 100 : 1200;
+    // === PAID: Calculate total minor amount ===
+    const totalAmountMinor = Math.round(pricing.amountMinor * hectares); // e.g., 2900 * 0.5 = 1450
 
     const userSub = await userSubscription.create({
       userId,
@@ -86,35 +93,72 @@ export const createSubscription = async (req, res) => {
       hectares,
       currency,
       billingCycle,
-      amountMinor,
+      amountMinor: totalAmountMinor,
       status: "pending",
       active: false,
-      notes: { migratedFromOrder: false },
+      notes: { dynamicPlan: true },
     });
 
-    const razorpayPlanId = pricing.razorpayPlanId;
-    if (!razorpayPlanId) {
+    // === CREATE DYNAMIC PLAN IN RAZORPAY ===
+    const period = billingCycle === "yearly" ? "yearly" : "monthly";
+    const interval = billingCycle === "yearly" ? 12 : 1;
+
+    const planItem = {
+      name: `${plan.name} - ${hectares.toFixed(2)} ha`,
+      amount: totalAmountMinor, // total in paise/cents
+      currency: currency,
+    };
+
+    let razorpayPlan;
+    try {
+      razorpayPlan = await razorpay.plans.create({
+        period,
+        interval,
+        item: planItem,
+        notes: {
+          subscriptionPlanId: planId,
+          hectares: hectares.toString(),
+          unit: "hectare",
+        },
+      });
+    } catch (err) {
+      console.error("Failed to create Razorpay plan:", err);
+      await userSubscription.deleteOne({ _id: userSub._id });
       return res
-        .status(400)
-        .json({ success: false, message: "Razorpay plan not configured" });
+        .status(500)
+        .json({ success: false, message: "Failed to create plan" });
     }
 
-    const payload = {
-      plan_id: razorpayPlanId,
-      quantity: Math.round(hectares * 100), // FIXED: Integer for quantity
+    // === CREATE SUBSCRIPTION WITH quantity = 1 ===
+    const totalCount = 1100;
+
+    const subPayload = {
+      plan_id: razorpayPlan.id,
       total_count: totalCount,
+      quantity: 1,
       customer_notify: 1,
       notes: {
         userId: String(userId),
         fieldId: String(fieldId),
         userSubscriptionId: String(userSub._id),
+        hectares: hectares.toString(),
       },
     };
 
-    const rSub = await razorpay.subscriptions.create(payload);
+    let rSub;
+    try {
+      rSub = await razorpay.subscriptions.create(subPayload);
+    } catch (err) {
+      console.error("Failed to create subscription:", err);
+      await userSubscription.deleteOne({ _id: userSub._id });
+      return res
+        .status(500)
+        .json({ success: false, message: "Failed to create subscription" });
+    }
 
+    // Update DB
     userSub.razorpaySubscriptionId = rSub.id;
-    userSub.razorpayPlanId = razorpayPlanId;
+    userSub.razorpayPlanId = razorpayPlan.id;
     userSub.razorpayCustomerId = rSub.customer_id || null;
     userSub.status = mapStatus(rSub.status);
     await userSub.save();
@@ -124,7 +168,7 @@ export const createSubscription = async (req, res) => {
       data: {
         subscriptionRecordId: userSub._id,
         razorpaySubscriptionId: rSub.id,
-        amountMinor,
+        amountMinor: totalAmountMinor,
         currency,
         key: process.env.RAZORPAY_KEY_ID,
       },

@@ -17,8 +17,8 @@ const schema = new mongoose.Schema(
     error: { type: Object },
     attempts: { type: Number, default: 0 },
     lastAttemptAt: { type: Date },
-    isTest: { type: Boolean, default: false }, // test mode marker
-    batchId: { type: String }, // BullMQ job.id for traceability
+    isTest: { type: Boolean, default: false },
+    batchId: { type: String },
   },
   { timestamps: true }
 );
