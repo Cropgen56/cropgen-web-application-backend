@@ -1,6 +1,5 @@
 // models/PaymentModel.js
 import mongoose from "mongoose";
-
 const { Schema } = mongoose;
 
 const PaymentSchema = new Schema(
@@ -15,29 +14,22 @@ const PaymentSchema = new Schema(
 
     provider: { type: String, default: "razorpay" },
 
-    // provider identifiers
-    providerPaymentId: { type: String, default: null, index: true }, // e.g. pay_...
-    providerOrderId: { type: String, default: null, index: true }, // e.g. order_...
-    providerInvoiceId: { type: String, default: null, index: true }, // e.g. invoice_...
+    providerPaymentId: { type: String, default: null, index: true }, // pay_…
+    providerOrderId: { type: String, default: null, index: true }, // order_…
+    providerInvoiceId: { type: String, default: null, index: true }, // invoice_…
 
     amountMinor: { type: Number },
     currency: { type: String },
 
-    // status from provider: captured/failed/authorized...
     status: { type: String },
 
-    // raw provider payload for debugging/audit
     raw: { type: Schema.Types.Mixed },
 
-    // any message/notes
     note: { type: String, default: null },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// unique index to avoid double-inserting same providerPaymentId
 PaymentSchema.index(
   { provider: 1, providerPaymentId: 1 },
   { unique: true, sparse: true }

@@ -1,6 +1,5 @@
 // models/SubscriptionPlanModel.js
 import mongoose from "mongoose";
-
 const { Schema } = mongoose;
 
 const PricingSchema = new Schema({
@@ -10,13 +9,9 @@ const PricingSchema = new Schema({
     enum: ["monthly", "yearly", "trial"],
     required: true,
   },
-  amountMinor: { type: Number, required: true }, // in paise/cents (e.g., 2900 = ₹29.00) per unit
-  unit: {
-    type: String,
-    enum: ["hectare", "acre"],
-    default: "hectare",
-  }, // Indicates what the amountMinor is charged per (e.g., per hectare for agriculture plans)
-  razorpayPlanId: { type: String, default: null }, // plan_... (auto-created by admin API)
+  amountMinor: { type: Number, required: true }, // paise/cents per unit
+  unit: { type: String, enum: ["hectare", "acre"], default: "hectare" },
+  razorpayPlanId: { type: String, default: null }, // plan_…
 });
 
 const SubscriptionPlanSchema = new Schema(
@@ -24,20 +19,18 @@ const SubscriptionPlanSchema = new Schema(
     name: { type: String, required: true },
     slug: {
       type: String,
-      // Note: enum limits to specific values; consider removing enum for flexibility if adding more plans
-      enum: ["basic", "free_trial"],
+      enum: ["basic", "free_trial"], // keep enum or remove
       required: true,
       unique: true,
-    }, // "free_trial", "basic", etc.
+    },
     description: { type: String },
 
-    maxUsers: { type: Number, default: 1 }, // allowed user seats (e.g., team size)
-    isTrial: { type: Boolean, default: false }, // true for free trial
-    trialDays: { type: Number, default: 0 }, // 30 days trial
+    maxUsers: { type: Number, default: 1 },
+    isTrial: { type: Boolean, default: false },
+    trialDays: { type: Number, default: 0 },
 
-    pricing: [PricingSchema], // multiple currency options with per-unit basis
+    pricing: [PricingSchema],
 
-    // Features as boolean flags
     features: {
       graphHistoricalData: { type: Boolean, default: false },
       satelliteCropMonitoring: { type: Boolean, default: false },
@@ -62,9 +55,7 @@ const SubscriptionPlanSchema = new Schema(
 
     active: { type: Boolean, default: true },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 export default mongoose.model("SubscriptionPlan", SubscriptionPlanSchema);

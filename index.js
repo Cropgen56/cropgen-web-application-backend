@@ -68,10 +68,17 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
-app.use(
-  "/v1/api/user-subscriptions/webhook",
-  bodyParser.raw({ type: "application/json" })
-);
+app.use("/v1/api/user-subscriptions/webhook", (req, res, next) => {
+  bodyParser.raw({ type: "application/json" })(req, res, () => {
+    req.rawBody = req.body;
+    try {
+      req.body = JSON.parse(req.body.toString());
+    } catch (err) {
+      return res.status(400).json({ error: "Invalid JSON" });
+    }
+    next();
+  });
+});
 
 app.use(express.json());
 app.use(cookieParser());

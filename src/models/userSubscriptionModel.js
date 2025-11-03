@@ -1,8 +1,8 @@
+// models/UserSubscriptionModel.js
 import mongoose from "mongoose";
-
 const { Schema } = mongoose;
 
-const userSubscription = new Schema(
+const UserSubscriptionSchema = new Schema(
   {
     userId: {
       type: Schema.Types.ObjectId,
@@ -23,7 +23,6 @@ const userSubscription = new Schema(
       required: true,
     },
 
-    // Business data
     hectares: { type: Number, min: 0, required: true },
     currency: { type: String, enum: ["INR", "USD"], required: true },
     billingCycle: {
@@ -33,16 +32,12 @@ const userSubscription = new Schema(
     },
     amountMinor: { type: Number, min: 0, required: true },
 
-    // Legacy order info (if you still use Orders for single payment)
-    orderId: { type: String, default: null },
-
-    // Razorpay subscription fields
+    // Razorpay identifiers
     razorpayPlanId: { type: String, default: null },
-    razorpaySubscriptionId: { type: String, default: null }, // sub_...
-    razorpayCustomerId: { type: String, default: null }, // contact_...
-    razorpayLastInvoiceId: { type: String, default: null }, // invoice_...
+    razorpaySubscriptionId: { type: String, default: null }, // sub_…
+    razorpayCustomerId: { type: String, default: null },
+    razorpayLastInvoiceId: { type: String, default: null },
 
-    // lifecycle and bookkeeping
     status: {
       type: String,
       enum: [
@@ -62,15 +57,12 @@ const userSubscription = new Schema(
     nextBillingAt: { type: Date, default: null },
     endDate: { type: Date, default: null },
 
-    // optional notes for auditing / mapping
     notes: { type: Schema.Types.Mixed, default: {} },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// ensure one active subscription per field (optional; remove if you allow multiple)
-userSubscription.index({ fieldId: 1, active: 1 }, { unique: false });
+// One active subscription per field (optional)
+UserSubscriptionSchema.index({ fieldId: 1, active: 1 }, { unique: false });
 
-export default mongoose.model("userSubscription", userSubscription);
+export default mongoose.model("UserSubscription", UserSubscriptionSchema);

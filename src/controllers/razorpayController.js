@@ -1,16 +1,15 @@
 // controllers/razorpayController.js
 import Razorpay from "razorpay";
 import crypto from "crypto";
-import userSubscription from "../models/userSubscriptionModel.js";
-import Payment from "../models/paymentModel.js";
-import SubscriptionPlan from "../models/subscriptionPlanModel.js";
+import UserSubscription from "../models/UserSubscriptionModel.js";
+import Payment from "../models/PaymentModel.js";
+import SubscriptionPlan from "../models/SubscriptionPlanModel.js";
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-// Map Razorpay → internal status
 const mapStatus = (s) =>
   ({
     created: "pending",
@@ -20,50 +19,42 @@ const mapStatus = (s) =>
     cancelled: "cancelled",
   }[s] || s);
 
-/**
- * CREATE SUBSCRIPTION (or trial)
- */
-// controllers/razorpayController.js
-
-export const createSubscription = async (req, res) => {
+/* ---------- CREATE USER SUBSCRIPTION (PERFECT BILLING) ---------- */
+export const createUserSubscription = async (req, res) => {
   try {
     const userId = req.user.id;
     const { planId, fieldId, hectares, billingCycle, currency } = req.body;
 
-    if (!planId || !fieldId || hectares == null || !billingCycle || !currency) {
+    // ───── VALIDATION ─────
+    if (!planId || !fieldId || hectares == null || !billingCycle || !currency)
       return res
         .status(400)
         .json({ success: false, message: "Missing fields" });
-    }
-
-    if (hectares <= 0) {
+    if (hectares <= 0)
       return res
         .status(400)
         .json({ success: false, message: "Area must be > 0" });
-    }
 
     const plan = await SubscriptionPlan.findById(planId).lean();
-    if (!plan?.active) {
+    if (!plan?.active)
       return res
         .status(404)
-        .json({ success: false, message: "Plan not found" });
-    }
+        .json({ success: false, message: "Plan not active" });
 
-    const pricing = (plan.pricing || []).find(
+    const pricing = plan.pricing.find(
       (p) =>
         p.currency === currency &&
         p.billingCycle === billingCycle &&
         p.unit === "hectare"
     );
-    if (!pricing) {
+    if (!pricing)
       return res
         .status(400)
-        .json({ success: false, message: "Invalid pricing" });
-    }
+        .json({ success: false, message: "Pricing not ready" });
 
-    // === TRIAL ===
+    // ───── TRIAL ─────
     if (plan.isTrial) {
-      const sub = await userSubscription.create({
+      const sub = await UserSubscription.create({
         userId,
         fieldId,
         planId,
@@ -83,105 +74,99 @@ export const createSubscription = async (req, res) => {
       });
     }
 
-    // === PAID: Calculate total minor amount ===
-    const totalAmountMinor = Math.round(pricing.amountMinor * hectares); // e.g., 2900 * 0.5 = 1450
+    // ───── PAID ─────
+    const hectaresFloat = parseFloat(hectares);
+    const totalAmountMinor = Math.round(pricing.amountMinor * hectaresFloat);
 
-    const userSub = await userSubscription.create({
+    // Save local record first
+    const localSub = await UserSubscription.create({
       userId,
       fieldId,
       planId,
-      hectares,
+      hectares: hectaresFloat,
       currency,
       billingCycle,
       amountMinor: totalAmountMinor,
       status: "pending",
       active: false,
-      notes: { dynamicPlan: true },
     });
 
-    // === CREATE DYNAMIC PLAN IN RAZORPAY ===
-    const period = billingCycle === "yearly" ? "yearly" : "monthly";
-    const interval = billingCycle === "yearly" ? 12 : 1;
-
-    const planItem = {
-      name: `${plan.name} - ${hectares.toFixed(2)} ha`,
-      amount: totalAmountMinor, // total in paise/cents
-      currency: currency,
+    // ───── ZERO‑PLAN (₹1) LOGIC ─────
+    const ZERO_PLANS = {
+      INR: process.env.RAZORPAY_ZERO_PLAN_INR, // <-- ₹1 plan ID
+      USD: process.env.RAZORPAY_ZERO_PLAN_USD, // optional
     };
 
-    let razorpayPlan;
+    const zeroPlanId = ZERO_PLANS[currency];
+    if (!zeroPlanId) {
+      await localSub.remove();
+      return res.status(400).json({
+        success: false,
+        message: `Zero plan not configured for currency: ${currency}`,
+      });
+    }
+
+    // Razorpay subscription: ₹1 base + dynamic addon
+    let rpSub;
     try {
-      razorpayPlan = await razorpay.plans.create({
-        period,
-        interval,
-        item: planItem,
+      rpSub = await razorpay.subscriptions.create({
+        plan_id: zeroPlanId, // ₹1 plan
+        total_count: billingCycle === "yearly" ? 12 : 30,
+        quantity: 1,
+        customer_notify: 1,
+        addons: [
+          {
+            item: {
+              name: `${plan.name} - Area Charge (${hectaresFloat} ha)`,
+              amount: totalAmountMinor, // exact amount per hectare
+              currency,
+            },
+            quantity: 1,
+          },
+        ],
         notes: {
-          subscriptionPlanId: planId,
-          hectares: hectares.toString(),
-          unit: "hectare",
+          userId: String(userId),
+          fieldId: String(fieldId),
+          userSubscriptionId: String(localSub._id),
+          hectares: String(hectaresFloat),
+          totalAmountMinor: String(totalAmountMinor),
         },
       });
     } catch (err) {
-      console.error("Failed to create Razorpay plan:", err);
-      await userSubscription.deleteOne({ _id: userSub._id });
-      return res
-        .status(500)
-        .json({ success: false, message: "Failed to create plan" });
+      console.error("Razorpay subscription error:", err);
+      await localSub.remove();
+      return res.status(500).json({
+        success: false,
+        message: "Failed to create subscription with Razorpay",
+      });
     }
 
-    // === CREATE SUBSCRIPTION WITH quantity = 1 ===
-    const totalCount = 1100;
+    // ───── UPDATE LOCAL RECORD ─────
+    localSub.razorpaySubscriptionId = rpSub.id;
+    localSub.razorpayCustomerId = rpSub.customer_id || null;
+    localSub.status = mapStatus(rpSub.status);
+    if (rpSub.charge_at)
+      localSub.nextBillingAt = new Date(rpSub.charge_at * 1000);
+    await localSub.save();
 
-    const subPayload = {
-      plan_id: razorpayPlan.id,
-      total_count: totalCount,
-      quantity: 1,
-      customer_notify: 1,
-      notes: {
-        userId: String(userId),
-        fieldId: String(fieldId),
-        userSubscriptionId: String(userSub._id),
-        hectares: hectares.toString(),
-      },
-    };
-
-    let rSub;
-    try {
-      rSub = await razorpay.subscriptions.create(subPayload);
-    } catch (err) {
-      console.error("Failed to create subscription:", err);
-      await userSubscription.deleteOne({ _id: userSub._id });
-      return res
-        .status(500)
-        .json({ success: false, message: "Failed to create subscription" });
-    }
-
-    // Update DB
-    userSub.razorpaySubscriptionId = rSub.id;
-    userSub.razorpayPlanId = razorpayPlan.id;
-    userSub.razorpayCustomerId = rSub.customer_id || null;
-    userSub.status = mapStatus(rSub.status);
-    await userSub.save();
-
-    return res.status(201).json({
+    // ───── RESPONSE ─────
+    res.status(201).json({
       success: true,
       data: {
-        subscriptionRecordId: userSub._id,
-        razorpaySubscriptionId: rSub.id,
+        subscriptionRecordId: localSub._id,
+        razorpaySubscriptionId: rpSub.id,
         amountMinor: totalAmountMinor,
         currency,
         key: process.env.RAZORPAY_KEY_ID,
       },
     });
-  } catch (err) {
-    console.error("createSubscription:", err);
-    return res.status(500).json({ success: false, message: "Server error" });
+  } catch (e) {
+    console.error("createUserSubscription error:", e);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
-/**
- * VERIFY CHECKOUT (frontend)
- */
+/* ---------- VERIFY CHECKOUT (frontend) ---------- */
 export const verifyCheckout = async (req, res) => {
   try {
     const {
@@ -193,32 +178,28 @@ export const verifyCheckout = async (req, res) => {
       !razorpay_payment_id ||
       !razorpay_subscription_id ||
       !razorpay_signature
-    ) {
+    )
       return res
         .status(400)
         .json({ success: false, message: "Missing fields" });
-    }
 
-    // FIXED: Now crypto is imported
     const sign = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
       .update(`${razorpay_payment_id}|${razorpay_subscription_id}`)
       .digest("hex");
 
-    if (sign !== razorpay_signature) {
+    if (sign !== razorpay_signature)
       return res
         .status(400)
         .json({ success: false, message: "Invalid signature" });
-    }
 
-    const sub = await userSubscription.findOne({
+    const sub = await UserSubscription.findOne({
       razorpaySubscriptionId: razorpay_subscription_id,
     });
-    if (!sub) {
+    if (!sub)
       return res
         .status(404)
         .json({ success: false, message: "Subscription not found" });
-    }
 
     sub.status = "active";
     sub.active = true;
@@ -241,104 +222,132 @@ export const verifyCheckout = async (req, res) => {
       { upsert: true }
     );
 
-    return res.json({ success: true });
-  } catch (err) {
-    console.error("verifyCheckout:", err);
-    return res.status(500).json({ success: false, message: "Server error" });
+    res.json({ success: true });
+  } catch (e) {
+    console.error("verifyCheckout error:", e);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
-/**
- * IDEMPOTENT PAYMENT SAVER
- */
+/* ---------- IDEMPOTENT PAYMENT SAVER ---------- */
 const savePayment = async (data) => {
   if (!data.providerPaymentId) return;
-
-  const { providerPaymentId } = data;
   await Payment.updateOne(
-    { provider: "razorpay", providerPaymentId },
+    { provider: "razorpay", providerPaymentId: data.providerPaymentId },
     { $setOnInsert: data },
     { upsert: true }
   );
 };
 
-/**
- * RAZORPAY WEBHOOK HANDLER
- * Must use: express.raw({ type: 'application/json' })
- */
+/* ---------- WEBHOOK HANDLER ---------- */
 export const razorpayWebhookHandler = async (req, res) => {
   try {
     const signature = req.headers["x-razorpay-signature"];
     const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
-    if (!signature || !secret) {
-      return res.status(400).send("Invalid");
-    }
+    if (!signature || !secret) return res.status(400).send("Bad request");
 
-    // FIXED: Now crypto is imported
-    const expected = crypto
-      .createHmac("sha256", secret)
-      .update(req.body)
-      .digest("hex");
-    if (expected !== signature) {
+    // Use raw body (not parsed JSON) for signature
+    const shasum = crypto.createHmac("sha256", secret);
+    shasum.update(req.rawBody);
+    if (shasum.digest("hex") !== signature) {
       return res.status(400).send("Invalid signature");
     }
 
-    const event = JSON.parse(req.body.toString());
-    const eventName = event.event;
+    const event = req.body; // already parsed in middleware
+    const ev = event.event;
 
-    // LOG SUB ID SAFELY
-    let subId = "N/A";
-    if (event.payload.subscription?.entity?.id) {
-      subId = event.payload.subscription.entity.id;
-    } else if (event.payload.payment?.entity?.subscription_id) {
-      subId = event.payload.payment.entity.subscription_id;
-    }
-    console.log(`[Webhook] ${eventName} | Sub: ${subId}`);
+    // -------------------------------------------------
+    // Find local subscription (works for first payment & renewals)
+    // -------------------------------------------------
+    const findLocalSub = async () => {
+      // 1. Direct subscription object
+      if (event.payload.subscription?.entity?.id) {
+        return UserSubscription.findOne({
+          razorpaySubscriptionId: event.payload.subscription.entity.id,
+        });
+      }
 
-    // 1. SUBSCRIPTION LIFECYCLE
+      // 2. From invoice (invoice.paid or payment.captured with invoice_id)
+      const invoiceId =
+        event.payload.invoice?.entity?.id ||
+        event.payload.payment?.entity?.invoice_id;
+
+      if (invoiceId) {
+        // Try direct subscription_id from payload first
+        if (event.payload.invoice?.entity?.subscription_id) {
+          return UserSubscription.findOne({
+            razorpaySubscriptionId:
+              event.payload.invoice.entity.subscription_id,
+          });
+        }
+
+        // Fallback: fetch invoice from Razorpay
+        try {
+          const inv = await razorpay.invoices.fetch(invoiceId);
+          if (inv.subscription_id) {
+            return UserSubscription.findOne({
+              razorpaySubscriptionId: inv.subscription_id,
+            });
+          }
+        } catch (err) {
+          console.warn(
+            `[Webhook] Invoice fetch failed (ID: ${invoiceId}):`,
+            err.message
+          );
+        }
+      }
+
+      // 3. Direct from payment (rare, only on renewals)
+      if (event.payload.payment?.entity?.subscription_id) {
+        return UserSubscription.findOne({
+          razorpaySubscriptionId: event.payload.payment.entity.subscription_id,
+        });
+      }
+
+      return null;
+    };
+
+    const local = await findLocalSub();
+    console.log(`[Webhook] ${ev} | Sub: ${local?._id ?? "NOT_FOUND"}`);
+
+    // -------------------------------------------------
+    // 1. Subscription lifecycle
+    // -------------------------------------------------
     if (
       [
         "subscription.activated",
         "subscription.charged",
         "subscription.updated",
         "subscription.authenticated",
-      ].includes(eventName)
+      ].includes(ev)
     ) {
-      const sub = event.payload.subscription.entity;
-      const record = await userSubscription.findOne({
-        razorpaySubscriptionId: sub.id,
-      });
-      if (record) {
-        const newStatus = mapStatus(sub.status);
-        const needsSave =
-          record.status !== newStatus ||
-          (sub.charge_at && !record.nextBillingAt);
-        if (needsSave) {
-          record.status = newStatus;
-          if (sub.charge_at) {
-            record.nextBillingAt = new Date(sub.charge_at * 1000);
-            console.log(`[Webhook] nextBillingAt → ${record.nextBillingAt}`);
-          }
-          await record.save();
+      const rpSub = event.payload.subscription?.entity;
+      if (local && rpSub) {
+        const newStatus = mapStatus(rpSub.status);
+        const needSave =
+          local.status !== newStatus ||
+          (rpSub.charge_at && !local.nextBillingAt);
+
+        if (needSave) {
+          local.status = newStatus;
+          if (rpSub.charge_at)
+            local.nextBillingAt = new Date(rpSub.charge_at * 1000);
+          await local.save();
         }
       }
+      return res.status(200).send("OK");
     }
 
-    // 2. INVOICE PAID
-    if (
-      eventName === "invoice.paid" ||
-      eventName === "invoice.payment_succeeded"
-    ) {
+    // -------------------------------------------------
+    // 2. Invoice paid
+    // -------------------------------------------------
+    if (ev === "invoice.paid" || ev === "invoice.payment_succeeded") {
       const inv = event.payload.invoice.entity;
-      const sub = event.payload.subscription?.entity;
-      const record = await userSubscription.findOne({
-        razorpaySubscriptionId: inv.subscription_id,
-      });
 
       await savePayment({
-        userId: record?.userId,
-        subscriptionId: record?._id,
-        fieldId: record?.fieldId,
+        userId: local?.userId,
+        subscriptionId: local?._id,
+        fieldId: local?.fieldId,
         provider: "razorpay",
         providerPaymentId: inv.payment_id,
         providerInvoiceId: inv.id,
@@ -350,80 +359,51 @@ export const razorpayWebhookHandler = async (req, res) => {
         note: "invoice.paid",
       });
 
-      if (record) {
-        record.status = "active";
-        record.active = true;
-        record.razorpayLastInvoiceId = inv.id;
-        if (sub?.charge_at) {
-          record.nextBillingAt = new Date(sub.charge_at * 1000);
-        } else if (inv.end_at) {
-          record.nextBillingAt = new Date(inv.end_at * 1000);
+      if (local) {
+        local.status = "active";
+        local.active = true;
+        local.razorpayLastInvoiceId = inv.id;
+        if (inv.end_at) {
+          local.nextBillingAt = new Date(inv.end_at * 1000);
         }
-        await record.save();
-        console.log(
-          `[Webhook] invoice.paid → sub ${inv.subscription_id} activated`
-        );
+        await local.save();
       }
+      return res.status(200).send("OK");
     }
 
-    // 3. PAYMENT CAPTURED / FAILED
-    if (eventName === "payment.captured" || eventName === "payment.failed") {
+    // -------------------------------------------------
+    // 3. Payment captured / failed
+    // -------------------------------------------------
+    if (ev === "payment.captured" || ev === "payment.failed") {
       const pay = event.payload.payment.entity;
-      let record = null;
 
-      // ALWAYS GET SUBSCRIPTION VIA INVOICE
-      if (pay.invoice_id) {
-        try {
-          const inv = await razorpay.invoices.fetch(pay.invoice_id);
-          if (inv.subscription_id) {
-            record = await userSubscription.findOne({
-              razorpaySubscriptionId: inv.subscription_id,
-            });
-            console.log(
-              `[Webhook] payment.captured → sub ${inv.subscription_id} (via invoice)`
-            );
-          }
-        } catch (e) {
-          console.warn("[Webhook] Failed to fetch invoice:", e.message);
-        }
-      }
-
-      // RARE: fallback if payment has subscription_id directly
-      if (!record && pay.subscription_id) {
-        record = await userSubscription.findOne({
-          razorpaySubscriptionId: pay.subscription_id,
-        });
-      }
-
-      // SAVE PAYMENT
       await savePayment({
-        userId: record?.userId,
-        subscriptionId: record?._id,
-        fieldId: record?.fieldId,
+        userId: local?.userId,
+        subscriptionId: local?._id,
+        fieldId: local?.fieldId,
         provider: "razorpay",
         providerPaymentId: pay.id,
         providerInvoiceId: pay.invoice_id,
         providerOrderId: pay.order_id,
         amountMinor: pay.amount,
         currency: pay.currency,
-        status: eventName === "payment.captured" ? "captured" : "failed",
+        status: ev === "payment.captured" ? "captured" : "failed",
         raw: pay,
-        note: eventName,
+        note: ev,
       });
 
-      if (record && eventName === "payment.captured") {
-        record.status = "active";
-        record.active = true;
-        await record.save();
-        console.log(
-          `[Webhook] payment.captured → sub ${record.razorpaySubscriptionId} ACTIVE`
-        );
+      if (local && ev === "payment.captured") {
+        local.status = "active";
+        local.active = true;
+        await local.save();
       }
+      return res.status(200).send("OK");
     }
 
-    return res.status(200).send("OK");
-  } catch (err) {
-    console.error("[Webhook] Error:", err);
-    return res.status(500).send("Error");
+    // Unknown event
+    res.status(200).send("OK");
+  } catch (e) {
+    console.error("[Webhook] error:", e);
+    res.status(500).send("Error");
   }
 };
