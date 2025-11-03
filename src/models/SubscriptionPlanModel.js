@@ -11,7 +11,7 @@ const PricingSchema = new Schema({
   },
   amountMinor: { type: Number, required: true }, // paise/cents per unit
   unit: { type: String, enum: ["hectare", "acre"], default: "hectare" },
-  razorpayPlanId: { type: String, default: null }, // plan_…
+  // razorpayPlanId: { type: String, default: null }, // plan_…
 });
 
 const SubscriptionPlanSchema = new Schema(

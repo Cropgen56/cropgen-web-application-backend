@@ -1,4 +1,3 @@
-// controllers/razorpayController.js
 import Razorpay from "razorpay";
 import crypto from "crypto";
 import UserSubscription from "../models/UserSubscriptionModel.js";
@@ -21,25 +20,29 @@ const mapStatus = (s) =>
 
 /* ---------- CREATE USER SUBSCRIPTION (PERFECT BILLING) ---------- */
 export const createUserSubscription = async (req, res) => {
+  let localSub = null;
   try {
     const userId = req.user.id;
     const { planId, fieldId, hectares, billingCycle, currency } = req.body;
 
     // ───── VALIDATION ─────
-    if (!planId || !fieldId || hectares == null || !billingCycle || !currency)
+    if (!planId || !fieldId || hectares == null || !billingCycle || !currency) {
       return res
         .status(400)
         .json({ success: false, message: "Missing fields" });
-    if (hectares <= 0)
+    }
+    if (hectares <= 0) {
       return res
         .status(400)
         .json({ success: false, message: "Area must be > 0" });
+    }
 
     const plan = await SubscriptionPlan.findById(planId).lean();
-    if (!plan?.active)
+    if (!plan?.active) {
       return res
         .status(404)
         .json({ success: false, message: "Plan not active" });
+    }
 
     const pricing = plan.pricing.find(
       (p) =>
@@ -47,12 +50,13 @@ export const createUserSubscription = async (req, res) => {
         p.billingCycle === billingCycle &&
         p.unit === "hectare"
     );
-    if (!pricing)
+    if (!pricing) {
       return res
         .status(400)
         .json({ success: false, message: "Pricing not ready" });
+    }
 
-    // ───── TRIAL ─────
+    // ───── TRIAL PLAN ─────
     if (plan.isTrial) {
       const sub = await UserSubscription.create({
         userId,
@@ -74,52 +78,55 @@ export const createUserSubscription = async (req, res) => {
       });
     }
 
-    // ───── PAID ─────
+    // ───── PAID PLAN: Calculate Real Amount ─────
     const hectaresFloat = parseFloat(hectares);
-    const totalAmountMinor = Math.round(pricing.amountMinor * hectaresFloat);
+    const realAmountMinor = Math.round(pricing.amountMinor * hectaresFloat);
 
-    // Save local record first
-    const localSub = await UserSubscription.create({
+    // Save local record first (for rollback)
+    localSub = await UserSubscription.create({
       userId,
       fieldId,
       planId,
       hectares: hectaresFloat,
       currency,
       billingCycle,
-      amountMinor: totalAmountMinor,
+      amountMinor: realAmountMinor,
       status: "pending",
       active: false,
     });
 
-    // ───── ZERO‑PLAN (₹1) LOGIC ─────
-    const ZERO_PLANS = {
-      INR: process.env.RAZORPAY_ZERO_PLAN_INR, // <-- ₹1 plan ID
-      USD: process.env.RAZORPAY_ZERO_PLAN_USD, // optional
+    // ───── ₹1 BASE PLAN (Official Minimum) ─────
+    const BASE_PLANS = {
+      INR: process.env.RAZORPAY_BASE_PLAN_INR,
+      USD: process.env.RAZORPAY_BASE_PLAN_USD,
     };
 
-    const zeroPlanId = ZERO_PLANS[currency];
-    if (!zeroPlanId) {
-      await localSub.remove();
+    const basePlanId = BASE_PLANS[currency];
+    if (!basePlanId) {
+      await UserSubscription.deleteOne({ _id: localSub._id });
       return res.status(400).json({
         success: false,
-        message: `Zero plan not configured for currency: ${currency}`,
+        message: `Base plan not configured for currency: ${currency}`,
       });
     }
 
-    // Razorpay subscription: ₹1 base + dynamic addon
+    // ───── Create Razorpay Subscription (₹1 + Addon) ─────
     let rpSub;
     try {
       rpSub = await razorpay.subscriptions.create({
-        plan_id: zeroPlanId, // ₹1 plan
+        plan_id: basePlanId,
         total_count: billingCycle === "yearly" ? 12 : 30,
         quantity: 1,
         customer_notify: 1,
         addons: [
           {
             item: {
-              name: `${plan.name} - Area Charge (${hectaresFloat} ha)`,
-              amount: totalAmountMinor, // exact amount per hectare
-              currency,
+              name: `${plan.name} - ${hectaresFloat} ha`,
+              amount: realAmountMinor,
+              currency: currency,
+              description: `Rate: ₹${
+                pricing.amountMinor / 100
+              }/ha × ${hectaresFloat} ha`,
             },
             quantity: 1,
           },
@@ -129,43 +136,51 @@ export const createUserSubscription = async (req, res) => {
           fieldId: String(fieldId),
           userSubscriptionId: String(localSub._id),
           hectares: String(hectaresFloat),
-          totalAmountMinor: String(totalAmountMinor),
+          realAmountMinor: String(realAmountMinor),
+          baseAmountMinor: "100", // ₹1 in paise
+          note: "₹1 is base fee, real charge is in addon",
         },
       });
     } catch (err) {
-      console.error("Razorpay subscription error:", err);
-      await localSub.remove();
+      console.error("Razorpay subscription creation failed:", err);
+      await UserSubscription.deleteOne({ _id: localSub._id });
       return res.status(500).json({
         success: false,
         message: "Failed to create subscription with Razorpay",
       });
     }
 
-    // ───── UPDATE LOCAL RECORD ─────
+    // ───── Update Local Record with Razorpay Data ─────
     localSub.razorpaySubscriptionId = rpSub.id;
     localSub.razorpayCustomerId = rpSub.customer_id || null;
     localSub.status = mapStatus(rpSub.status);
-    if (rpSub.charge_at)
+    if (rpSub.charge_at) {
       localSub.nextBillingAt = new Date(rpSub.charge_at * 1000);
+    }
     await localSub.save();
 
-    // ───── RESPONSE ─────
+    // ───── SUCCESS RESPONSE (Frontend uses real amount) ─────
     res.status(201).json({
       success: true,
       data: {
         subscriptionRecordId: localSub._id,
         razorpaySubscriptionId: rpSub.id,
-        amountMinor: totalAmountMinor,
+        amountMinor: realAmountMinor,
         currency,
         key: process.env.RAZORPAY_KEY_ID,
       },
     });
   } catch (e) {
+    // ───── FINAL ERROR: Clean up if localSub exists ─────
+    if (localSub?._id) {
+      await UserSubscription.deleteOne({ _id: localSub._id }).catch(() => {});
+    }
     console.error("createUserSubscription error:", e);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
+// verifyCheckout, savePayment, webhook unchanged
 /* ---------- VERIFY CHECKOUT (frontend) ---------- */
 export const verifyCheckout = async (req, res) => {
   try {
@@ -253,7 +268,7 @@ export const razorpayWebhookHandler = async (req, res) => {
       return res.status(400).send("Invalid signature");
     }
 
-    const event = req.body; // already parsed in middleware
+    const event = req.body;
     const ev = event.event;
 
     // -------------------------------------------------

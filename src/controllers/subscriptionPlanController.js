@@ -41,8 +41,55 @@ async function createRazorpayPlan(pricing, planName, planSlug) {
 }
 
 /* ---------- CRUD ---------- */
+// export const createSubscriptionPlan = async (req, res) => {
+//   let tempPlan = null;
+//   try {
+//     const { error } = subscriptionPlanSchema.validate(req.body, {
+//       abortEarly: false,
+//     });
+//     if (error)
+//       return res.status(400).json({
+//         success: false,
+//         message: "Validation error",
+//         error: error.details.map((e) => e.message),
+//       });
+
+//     if (await SubscriptionPlan.exists({ slug: req.body.slug }))
+//       return res.status(400).json({
+//         success: false,
+//         message: `Slug "${req.body.slug}" already used`,
+//       });
+
+//     // 1. Save without Razorpay IDs
+//     tempPlan = await SubscriptionPlan.create(req.body);
+
+//     // 2. Create Razorpay plans for each pricing entry
+//     const pricingWithIds = await Promise.all(
+//       req.body.pricing.map(async (p) => ({
+//         ...p,
+//         razorpayPlanId: await createRazorpayPlan(
+//           p,
+//           req.body.name,
+//           req.body.slug
+//         ),
+//       }))
+//     );
+
+//     const finalPlan = await SubscriptionPlan.findByIdAndUpdate(
+//       tempPlan._id,
+//       { $set: { pricing: pricingWithIds } },
+//       { new: true, runValidators: true }
+//     );
+
+//     res.status(201).json({ success: true, data: finalPlan });
+//   } catch (e) {
+//     if (tempPlan?._id)
+//       await SubscriptionPlan.findByIdAndDelete(tempPlan._id).catch(() => {});
+//     res.status(400).json({ success: false, message: e.message });
+//   }
+// };
+
 export const createSubscriptionPlan = async (req, res) => {
-  let tempPlan = null;
   try {
     const { error } = subscriptionPlanSchema.validate(req.body, {
       abortEarly: false,
@@ -60,31 +107,9 @@ export const createSubscriptionPlan = async (req, res) => {
         message: `Slug "${req.body.slug}" already used`,
       });
 
-    // 1. Save without Razorpay IDs
-    tempPlan = await SubscriptionPlan.create(req.body);
-
-    // 2. Create Razorpay plans for each pricing entry
-    const pricingWithIds = await Promise.all(
-      req.body.pricing.map(async (p) => ({
-        ...p,
-        razorpayPlanId: await createRazorpayPlan(
-          p,
-          req.body.name,
-          req.body.slug
-        ),
-      }))
-    );
-
-    const finalPlan = await SubscriptionPlan.findByIdAndUpdate(
-      tempPlan._id,
-      { $set: { pricing: pricingWithIds } },
-      { new: true, runValidators: true }
-    );
-
-    res.status(201).json({ success: true, data: finalPlan });
+    const plan = await SubscriptionPlan.create(req.body);
+    res.status(201).json({ success: true, data: plan });
   } catch (e) {
-    if (tempPlan?._id)
-      await SubscriptionPlan.findByIdAndDelete(tempPlan._id).catch(() => {});
     res.status(400).json({ success: false, message: e.message });
   }
 };
