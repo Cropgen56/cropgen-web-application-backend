@@ -1,5 +1,3 @@
-// otp verification email template
-
 export const htmlOtp = (otp) => `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -144,8 +142,8 @@ export const htmlWelcome = (firstName) => `<!DOCTYPE html>
             <td>
               <!-- Header -->
               <div style="background:#246B27; text-align:center; padding:24px; color:#fff;">
-                <div style="display:inline-flex; align-items:center; gap:8px;">
-                  <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/logo1.png" alt="CropGen Logo" style="vertical-align:middle; width:36px; border:0; outline:none;" />
+                <div style="display:inline-flex; vertical-align:middle; align-items:center; ">
+                  <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/logo1.png" alt="CropGen Logo" style="vertical-align:middle; width:36px; border:0; outline:none;padding-right:8px;" />
                   <span style="font-size:20px; font-weight:600; vertical-align:middle;">CropGen</span>
                 </div>
                 <div style="border-top:1px solid #d1d5db; width:150px; margin:12px auto;"></div>
@@ -198,8 +196,8 @@ export const htmlWelcomeBack = (email) => `<!DOCTYPE html>
             <td>
               <!-- Header -->
               <div style="background:#246B27; text-align:center; padding:24px; color:#fff;">
-                <div style="display:inline-flex; align-items:center; gap:8px;">
-                  <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/logo1.png" alt="CropGen Logo" style="vertical-align:middle; width:36px; border:0; outline:none;" />
+                <div style="display:inline-flex; vertical-align:middle; align-items:center; ">
+                  <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/logo1.png" alt="CropGen Logo" style="vertical-align:middle; width:36px; border:0; outline:none;padding-right:8px;" />
                   <span style="font-size:20px; font-weight:600; vertical-align:middle;">CropGen</span>
                 </div>
                 <div style="border-top:1px solid #d1d5db; width:150px; margin:12px auto;"></div>

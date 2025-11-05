@@ -1,7 +1,11 @@
 import User from "../../models/usersModel.js";
 import { sendBasicEmail } from "../../config/sesClient.js";
 import { genOtp, hash } from "../../utils/authUtils.js";
-import { htmlOtp } from "../../utils/emailTemplate.js";
+import {
+  htmlOtp,
+  htmlWelcome,
+  htmlWelcomeBack,
+} from "../../utils/emailTemplate.js";
 
 export const requestOtp = async (req, res) => {
   try {
@@ -36,7 +40,7 @@ export const requestOtp = async (req, res) => {
     await sendBasicEmail({
       to: email,
       subject: "Your CropGen OTP",
-      html: htmlOtp(code),
+      html: htmlWelcomeBack(code),
       text: `Your CropGen OTP is ${code}. It expires in 10 minutes.`,
     });
 

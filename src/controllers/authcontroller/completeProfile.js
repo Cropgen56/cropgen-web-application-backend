@@ -6,6 +6,7 @@ import {
   setRefreshCookie,
   resolveOrganizationByCode,
 } from "../../utils/authUtils.js";
+import { sendBasicEmail } from "../../config/sesClient.js";
 import { htmlWelcome } from "../../utils/emailTemplate.js";
 
 export const completeProfile = async (req, res) => {
@@ -87,8 +88,11 @@ export const completeProfile = async (req, res) => {
     // Set HttpOnly refresh cookie
     setRefreshCookie(res, refreshToken);
 
+    console.log("test send mail");
+
     // Send welcome email (non-critical)
     try {
+      console.log("Sending welcome email...");
       await sendBasicEmail({
         to: user.email,
         subject: "Welcome to CropGen",
