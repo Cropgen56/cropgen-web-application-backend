@@ -1,28 +1,23 @@
-// models/SubscriptionPlanModel.js
+// src/models/SubscriptionPlanModel.js
 import mongoose from "mongoose";
+
 const { Schema } = mongoose;
 
 const PricingSchema = new Schema({
-  currency: { type: String, required: true }, // "INR", "USD"
+  currency: { type: String, required: true },
   billingCycle: {
     type: String,
     enum: ["monthly", "yearly", "trial"],
     required: true,
   },
-  amountMinor: { type: Number, required: true }, // paise/cents per unit
+  amountMinor: { type: Number, required: true },
   unit: { type: String, enum: ["hectare", "acre"], default: "hectare" },
-  // razorpayPlanId: { type: String, default: null }, // plan_…
 });
 
 const SubscriptionPlanSchema = new Schema(
   {
     name: { type: String, required: true },
-    slug: {
-      type: String,
-      enum: ["basic", "free_trial"], // keep enum or remove
-      required: true,
-      unique: true,
-    },
+    slug: { type: String, required: true, unique: true },
     description: { type: String },
 
     maxUsers: { type: Number, default: 1 },
@@ -58,4 +53,9 @@ const SubscriptionPlanSchema = new Schema(
   { timestamps: true }
 );
 
-export default mongoose.model("SubscriptionPlan", SubscriptionPlanSchema);
+// Prevent OverwriteModelError
+const SubscriptionPlan =
+  mongoose.models.SubscriptionPlan ||
+  mongoose.model("SubscriptionPlan", SubscriptionPlanSchema);
+
+export default SubscriptionPlan;

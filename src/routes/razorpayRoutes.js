@@ -3,7 +3,7 @@ import {
   createUserSubscription,
   verifyCheckout,
   razorpayWebhookHandler,
-} from "../controllers/razorpayController.js";
+} from "../controllers/razorpay/index.js";
 import { isAuthenticated } from "../middleware/authMiddleware.js";
 const router = express.Router();
 

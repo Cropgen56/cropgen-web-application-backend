@@ -1,5 +1,3 @@
-// otp verification email template
-
 export const htmlOtp = (otp) => `<!DOCTYPE html>
 <html lang="en">
 <head>

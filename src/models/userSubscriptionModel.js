@@ -1,4 +1,3 @@
-// models/UserSubscriptionModel.js
 import mongoose from "mongoose";
 const { Schema } = mongoose;
 
@@ -33,8 +32,7 @@ const UserSubscriptionSchema = new Schema(
     amountMinor: { type: Number, min: 0, required: true },
 
     // Razorpay identifiers
-    // razorpayPlanId: { type: String, default: null },
-    razorpaySubscriptionId: { type: String, default: null }, // sub_…
+    razorpaySubscriptionId: { type: String, default: null },
     razorpayCustomerId: { type: String, default: null },
     razorpayLastInvoiceId: { type: String, default: null },
 

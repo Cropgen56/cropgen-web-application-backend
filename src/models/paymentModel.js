@@ -1,5 +1,5 @@
-// models/PaymentModel.js
 import mongoose from "mongoose";
+
 const { Schema } = mongoose;
 
 const PaymentSchema = new Schema(
@@ -14,9 +14,9 @@ const PaymentSchema = new Schema(
 
     provider: { type: String, default: "razorpay" },
 
-    providerPaymentId: { type: String, default: null, index: true }, // pay_…
-    providerOrderId: { type: String, default: null, index: true }, // order_…
-    providerInvoiceId: { type: String, default: null, index: true }, // invoice_…
+    providerPaymentId: { type: String, default: null, index: true },
+    providerOrderId: { type: String, default: null, index: true },
+    providerInvoiceId: { type: String, default: null, index: true },
 
     amountMinor: { type: Number },
     currency: { type: String },
@@ -30,9 +30,7 @@ const PaymentSchema = new Schema(
   { timestamps: true }
 );
 
-PaymentSchema.index(
-  { provider: 1, providerPaymentId: 1 },
-  { unique: true, sparse: true }
-);
+const Payment =
+  mongoose.models.Payment || mongoose.model("Payment", PaymentSchema);
 
-export default mongoose.model("Payment", PaymentSchema);
+export default Payment;

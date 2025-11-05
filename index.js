@@ -44,7 +44,6 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // console.log("Request Origin:", origin);
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, origin || allowedOrigins[0]);
     } else {
@@ -82,17 +81,6 @@ app.use("/v1/api/user-subscriptions/webhook", (req, res, next) => {
 
 app.use(express.json());
 app.use(cookieParser());
-
-app.use((req, res, next) => {
-  if (req.path === "/v1/api/user-subscriptions/webhook") {
-    console.log(
-      "🌐 Raw webhook request received:",
-      req.method,
-      req.headers["x-razorpay-event-id"]
-    );
-  }
-  next();
-});
 
 // Routes
 app.use("/v1/api/auth", authRoutes);

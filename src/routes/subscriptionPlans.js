@@ -5,7 +5,7 @@ import {
   getSubscriptionPlanById,
   updateSubscriptionPlan,
   deleteSubscriptionPlan,
-} from "../controllers/subscriptionPlanController.js";
+} from "../controllers/subscriptioncontroller/index.js";
 import {
   isAuthenticated,
   authorizeRoles,
@@ -23,8 +23,8 @@ router.get("/", isAuthenticated, getAllSubscriptionPlans);
 router.get("/:id", isAuthenticated, getSubscriptionPlanById);
 router.patch(
   "/:id",
-  isAuthenticated,
-  authorizeRoles("admin"),
+  // isAuthenticated,
+  // authorizeRoles("admin"),
   updateSubscriptionPlan
 );
 router.delete(
