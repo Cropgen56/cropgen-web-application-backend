@@ -2,8 +2,6 @@ import crypto from "crypto";
 import Razorpay from "razorpay";
 import UserSubscription from "../../models/UserSubscriptionModel.js";
 import Payment from "../../models/PaymentModel.js";
-import User from "../../models/usersModel.js";
-import SubscriptionPlan from "../../models/SubscriptionPlanModel.js";
 import { sendBasicEmail } from "../../config/sesClient.js";
 import { htmlSubscriptionSuccess } from "../../utils/emailTemplate.js";
 
