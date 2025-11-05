@@ -1,4 +1,4 @@
-import Payment from "../../../models/paymentModel.js";
+import Payment from "../../models/PaymentModel.js";
 
 export const savePayment = async (data) => {
   if (!data.providerPaymentId) return;
