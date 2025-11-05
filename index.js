@@ -28,36 +28,35 @@ const app = express();
 const PORT = process.env.PORT ? Number(process.env.PORT) : 7070;
 const NODE_ENV = process.env.NODE_ENV || "development";
 
-// === CORS configuration ===
+// allowedOrigins as you already have
 const allowedOrigins = [
   "https://admin.cropgenapp.com",
   "https://www.cropgenapp.com",
   "https://app.cropgenapp.com",
   "https://cropydeals.cropgenapp.com",
-  // Local dev (HTTP and HTTPS)
   "http://localhost:3000",
   "http://localhost:5173",
 ].filter(Boolean);
 
 const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, origin || allowedOrigins[0]);
-    } else {
-      console.error(`Blocked origin: ${origin}`);
-      callback(new Error("Not allowed by CORS"));
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, origin);
     }
+    console.warn("Blocked CORS origin:", origin);
+    return callback(null, false);
   },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+  methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
   allowedHeaders: [
     "Content-Type",
     "Authorization",
     "x-api-key",
     "X-Requested-With",
   ],
-  optionsSuccessStatus: 204,
   exposedHeaders: ["Set-Cookie"],
+  optionsSuccessStatus: 204,
 };
 
 // Apply middleware
