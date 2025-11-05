@@ -237,7 +237,7 @@ export const htmlWelcomeBack = (email) => `<!DOCTYPE html>
 </html>
 `;
 
-// Subscription Success Invoice email template
+// utils/emailTemplate.js
 export const htmlSubscriptionSuccess = (
   userName,
   planName,
@@ -263,286 +263,150 @@ export const htmlSubscriptionSuccess = (
   const issuedDate = formatDate(new Date());
   const billingPeriod = `${formatDate(startDate)} – ${formatDate(endDate)}`;
 
-  // Generate dynamic invoice number (you can improve this logic)
-  const generateInvoiceNumber = () => {
-    const year = new Date().getFullYear();
-    const random = Math.floor(10000 + Math.random() * 90000);
-    return `CG/${year}/INV-${random}`;
-  };
-
   const finalInvoiceNumber = invoiceNumber.startsWith("CG/")
     ? invoiceNumber
-    : generateInvoiceNumber();
+    : `CG/${new Date().getFullYear()}/INV-${Math.floor(
+        10000 + Math.random() * 90000
+      )}`;
 
   return `
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CropGen Invoice</title>
-    <style>
-      body {
-        font-family: "Poppins", sans-serif;
-        background-color: #fff;
-        margin: 0;
-        padding: 0;
-        color: #222;
-      }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CropGen Invoice</title>
+</head>
+<body style="margin:0; padding:0; background:#f9fafb; font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#f9fafb; padding:20px 0;">
+    <tr>
+      <td align="center">
 
-      .invoice-container {
-        max-width: 600px;
-        margin: 40px auto;
-        background: #f8f8fc;
-        border-radius: 12px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        overflow: hidden;
-      }
+        <!-- View in Browser -->
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:600px; margin:0 auto 16px;">
+          <tr>
+            <td align="center" style="font-size:12px; color:#6b7280;">
+              <a href="#" style="color:#345d13; text-decoration:underline;">View in browser</a>
+            </td>
+          </tr>
+        </table>
 
-      .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 25px 25px 10px;
-      }
+        <!-- Main Card -->
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:600px; background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.05);">
+          
+          <!-- Green Header -->
+          <tr>
+            <td style="background:#246B27; padding:20px; text-align:center;">
+              <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/logo1.png" alt="CropGen" width="36" height="36" style="display:inline-block; vertical-align:middle;" />
+              <span style="color:#ffffff; font-size:20px; font-weight:600; margin-left:8px; vertical-align:middle;">CropGen</span>
+            </td>
+          </tr>
 
-      .logo-box {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
+          <!-- Illustration -->
+          <tr>
+            <td style="padding:32px 40px 24px; text-align:center;">
+              <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/invoice-illustration.png" alt="Payment Success" width="280" style="max-width:100%; height:auto; display:block; margin:0 auto;" />
+            </td>
+          </tr>
 
-      .logo-box img {
-        width: 39px;
-        height: 39px;
-      }
+          <!-- Success Message -->
+          <tr>
+            <td style="padding:0 40px 16px; text-align:center;">
+              <h1 style="font-size:28px; font-weight:700; color:#111827; margin:0 0 8px;">Your Payment Successful</h1>
+              <p style="font-size:16px; color:#374151; margin:0 0 4px;">
+                Thank you for your payment of <strong>${formattedAmount}</strong> on <strong>${issuedDate}</strong>
+              </p>
+              <p style="font-size:16px; color:#374151; margin:0;">Using ${paymentMethod}</p>
+            </td>
+          </tr>
 
-      .logo-box span {
-        font-size: 16px;
-        font-weight: 600;
-        color: #345d13;
-      }
+          <!-- Dashed Line -->
+          <tr>
+            <td style="padding:0 40px;">
+              <div style="border-bottom:2px dashed #86d72f; margin:20px 0;"></div>
+            </td>
+          </tr>
 
-      .socials {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-      }
+          <!-- Invoice Summary -->
+          <tr>
+            <td style="padding:0 40px 24px;">
+              <p style="font-size:14px; font-weight:600; color:#111827; margin:0 0 12px;">Invoice Summary Box:</p>
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background:#f0fdf4; border-radius:8px; padding:16px; font-size:14px;">
+                <tr>
+                  <td style="padding:6px 0; color:#374151; width:50%;"><strong>Invoice No.</strong></td>
+                  <td style="padding:6px 0; text-align:right; color:#111827; font-weight:600;">${finalInvoiceNumber}</td>
+                </tr>
+                <tr>
+                  <td style="padding:6px 0; color:#374151;"><strong>Date Issued</strong></td>
+                  <td style="padding:6px 0; text-align:right; color:#111827; font-weight:600;">${issuedDate}</td>
+                </tr>
+                <tr>
+                  <td style="padding:6px 0; color:#374151;"><strong>Plan</strong></td>
+                  <td style="padding:6px 0; text-align:right; color:#111827; font-weight:600;">${planName} - ${hectares} ha</td>
+                </tr>
+                <tr>
+                  <td style="padding:6px 0; color:#374151;"><strong>Billing Period</strong></td>
+                  <td style="padding:6px 0; text-align:right; color:#111827; font-weight:600;">${billingPeriod}</td>
+                </tr>
+                <tr>
+                  <td style="padding:6px 0; color:#374151;"><strong>Amount Due</strong></td>
+                  <td style="padding:6px 0; text-align:right; color:#111827; font-weight:600;">${formattedAmount}</td>
+                </tr>
+                <tr>
+                  <td style="padding:6px 0; color:#374151;"><strong>Payment Status</strong></td>
+                  <td style="padding:6px 0; text-align:right; color:#111827; font-weight:600;">Paid (${paymentMethod})</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
 
-      .socials img {
-        opacity: 0.85;
-        transition: 0.2s;
-      }
+          <!-- Download Button -->
+          <tr>
+            <td style="padding:0 40px 32px; text-align:center;">
+              <a href="https://app.cropgenapp.com/dashboard-icon" style="display:inline-flex; align-items:center; gap:8px; background:#345F11; color:#ffffff; font-weight:600; font-size:16px; padding:12px 24px; border-radius:6px; text-decoration:none;">
+                <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/download-icon.png" alt="Download" width="16" height="16" style="display:inline-block;" />
+                Download Invoice PDF
+              </a>
+            </td>
+          </tr>
 
-      .socials img:hover {
-        opacity: 1;
-        transform: scale(1.05);
-      }
+          <!-- Tip -->
+          <tr>
+            <td style="padding:0 40px 24px; text-align:center; font-size:12px; color:#6b7280;">
+              <strong>Tip:</strong> Add <strong>no-reply@cropgen.in</strong> to your contacts to always see images.
+            </td>
+          </tr>
 
-      .illustration {
-        text-align: center;
-        padding: 20px;
-      }
+          <!-- Footer -->
+          <tr>
+            <td style="background:#246B27; color:#ffffff; padding:20px; text-align:center; font-size:13px;">
+              <p style="margin:0 0 8px;">
+                You can view and manage your invoices anytime from your CropGen Dashboard.<br>
+                For queries, contact <a href="mailto:support@cropgen.in" style="color:#d8f0ff; text-decoration:underline;">support@cropgen.in</a>
+              </p>
+              <p style="margin:12px 0 0; font-size:12px;">
+                This email was sent to you by <strong>CropGen</strong> – AI-Powered Crop Monitoring & Precision Farming
+              </p>
+              <p style="margin:16px 0 0;">
+                <a href="https://app.cropgenapp.com/login" style="color:#d8f0ff; text-decoration:underline; margin:0 8px;">Visit Dashboard</a> |
+                <a href="https://www.cropgenapp.com/contact" style="color:#d8f0ff; text-decoration:underline; margin:0 8px;">Contact us</a>
+              </p>
+            </td>
+          </tr>
+        </table>
 
-      .illustration img {
-        width: 260px;
-        max-width: 100%;
-        height: 270px;
-      }
-
-      .payment-info {
-        text-align: center;
-        padding: 20px;
-        border-bottom: 2px dashed #86d72f;
-        margin: 0 20px;
-      }
-
-      .payment-info h2 {
-        margin: 10px 0;
-        font-size: 26px;
-        color: #000;
-        font-weight: 700;
-      }
-
-      .payment-info p {
-        margin: 6px 0;
-        font-size: 16px;
-        font-weight: 500;
-      }
-
-      .highlight {
-        font-weight: 700;
-        font-size: 20px;
-      }
-
-      .summary-title {
-        font-size: 15px;
-        font-weight: 600;
-        color: #000;
-        margin: 20px 30px;
-      }
-
-      .summary {
-        background: #2ab6731a;
-        border-radius: 12px;
-        padding: 20px;
-        margin: 0px 30px 20px;
-        font-size: 15px;
-      }
-
-      .summary-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 8px 0;
-        font-size: 14px;
-        color: #000;
-      }
-
-      .summary-row span:first-child {
-        font-weight: 500;
-      }
-
-      .summary-row span:last-child {
-        font-weight: 700;
-      }
-
-      .btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        background: #345d13;
-        color: #fff;
-        text-align: center;
-        padding: 12px 20px;
-        font-size: 15px;
-        border-radius: 8px;
-        text-decoration: none;
-        transition: 0.3s;
-        margin: 0 30px 20px;
-        cursor: pointer;
-      }
-
-      .footer {
-        font-size: 13px;
-        color: #000;
-        padding: 20px;
-        margin: 0 20px;
-        border-top: 2px dashed #86d72f;
-        line-height: 28px;
-      }
-
-      .footer p {
-        text-align: left;
-        font-weight: 500;
-      }
-
-      .footer a {
-        color: #198754;
-        text-decoration: none;
-      }
-
-      .footer small {
-        display: block;
-        margin-top: 10px;
-        font-style: italic;
-        color: black;
-        text-align: center;
-      }
-
-      .footer span {
-        display: block;
-        text-align: center;
-        font-style: italic;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="invoice-container">
-      <div class="header">
-        <div class="logo-box">
-          <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/logo.png" alt="CropGen Logo" />
-          <span>CropGen</span>
-        </div>
-
-        <div class="socials">
-          <a href="https://www.facebook.com/people/CropGen/61554177574869/" target="_blank">
-            <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/facebook.png" alt="Facebook" />
-          </a>
-          <a href="https://www.instagram.com/cropgen" target="_blank">
-            <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/insta.png" alt="Instagram" />
-          </a>
-          <a href="https://x.com/cropgen" target="_blank">
-            <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/twitter.png" alt="Twitter" />
-          </a>
-          <a href="https://www.linkedin.com/company/cropgen/posts/?feedView=all&viewAsMember=true" target="_blank">
-            <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/linkedin.png" alt="LinkedIn" />
-          </a>
-          <a href="https://www.youtube.com/channel/UCuU7d-rByYZfMkfoj0Pgq0w" target="_blank">
-            <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/youtube.png" alt="YouTube" />
-          </a>
-        </div>
-      </div>
-
-      <div class="illustration">
-        <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/invoice-illustration.png" alt="Payment Illustration" />
-      </div>
-
-      <div class="payment-info">
-        <h2>Your Payment Successful</h2>
-        <p>
-          Thank you for your payment of
-          <span class="highlight">${formattedAmount}</span> on
-          <span class="highlight">${issuedDate}</span>
-        </p>
-        <p>Using ${paymentMethod}</p>
-      </div>
-
-      <h4 class="summary-title">Invoice Summary Box:</h4>
-
-      <div class="summary">
-        <div class="summary-row">
-          <span>Invoice No.</span><span>${finalInvoiceNumber}</span>
-        </div>
-        <div class="summary-row">
-          <span>Date Issued</span><span>${issuedDate}</span>
-        </div>
-        <div class="summary-row">
-          <span>Plan</span><span>${planName} - ${hectares} ha</span>
-        </div>
-        <div class="summary-row">
-          <span>Billing Period</span><span>${billingPeriod}</span>
-        </div>
-        <div class="summary-row">
-          <span>Amount Due</span><span>${formattedAmount}</span>
-        </div>
-        <div class="summary-row">
-          <span>Payment Status</span>
-          <span>Paid (${paymentMethod})</span>
-        </div>
-      </div>
-
-      <a href="https://app.cropgenapp.com/dashboard" class="btn">
-        <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/download-icon.png" alt="Download" /> Download Invoice PDF
-      </a>
-
-      <div class="footer">
-        <p>
-          You can view and manage your invoices anytime from your CropGen
-          Dashboard.<br />
-          For queries, contact
-          <a href="mailto:support@cropgen.in">support@cropgen.in</a>
-        </p>
-        <small>
-          This email was sent to you by CropGen - AI-Powered Crop Monitoring &
-          Precision Farming
-        </small>
-        <span>
-          <a href="https://app.cropgenapp.com/login">Visit Dashboard</a> |
-          <a href="https://www.cropgenapp.com/contact">Contact us</a>
-        </span>
-      </div>
-    </div>
-  </body>
+        <!-- Footer Note -->
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:600px; margin:16px auto 0;">
+          <tr>
+            <td align="center" style="font-size:11px; color:#9ca3af;">
+              © 2025 CropGen. All rights reserved.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
 </html>
   `;
 };

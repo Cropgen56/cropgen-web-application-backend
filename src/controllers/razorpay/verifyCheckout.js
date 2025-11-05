@@ -184,6 +184,8 @@ Invoice: ${payment.invoiceNumber}
 Login: https://app.cropgenapp.com/dashboard
         `.trim(),
       });
+
+      console.log("Subscription email sent to:", user.email);
     } catch (emailErr) {
       console.error("Failed to send email:", emailErr);
       // Don't fail webhook due to email
