@@ -5,7 +5,7 @@ import cookieParser from "cookie-parser";
 import http from "http";
 import { fileURLToPath } from "url";
 import path from "path";
-
+import bodyParser from "body-parser";
 import { connectToDatabase } from "./src/config/db.js";
 import authRoutes from "./src/routes/authRoutes.js";
 import fieldRoutes from "./src/routes/fieldRoutes.js";
@@ -16,7 +16,7 @@ import cropRoutes from "./src/routes/cropRoutes.js";
 import emailRoutes from "./src/routes/emailRoutes.js";
 import "./src/config/firebaseConfig.js";
 import subscriptionRoutes from "./src/routes/subscriptionPlans.js";
-import userSubscriptionRoutes from "./src/routes/userSubscriptions.js";
+import razorpayRoutes from "./src/routes/razorpayRoutes.js";
 
 dotenv.config();
 
@@ -41,7 +41,6 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // console.log("Request Origin:", origin);
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, origin || allowedOrigins[0]);
     } else {
@@ -64,6 +63,19 @@ const corsOptions = {
 // Apply middleware
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
+
+app.use("/v1/api/user-subscriptions/webhook", (req, res, next) => {
+  bodyParser.raw({ type: "application/json" })(req, res, () => {
+    req.rawBody = req.body;
+    try {
+      req.body = JSON.parse(req.body.toString());
+    } catch (err) {
+      return res.status(400).json({ error: "Invalid JSON" });
+    }
+    next();
+  });
+});
+
 app.use(express.json());
 app.use(cookieParser());
 
@@ -76,7 +88,7 @@ app.use("/v1/api/operation", operationRoutes);
 app.use("/v1/api/crop", cropRoutes);
 app.use("/v1/api/email", emailRoutes);
 app.use("/v1/api/subscription", subscriptionRoutes);
-app.use("/v1/api/user-subscriptions", userSubscriptionRoutes);
+app.use("/v1/api/user-subscriptions", razorpayRoutes);
 
 // Health check
 app.get("/health", (req, res) => {

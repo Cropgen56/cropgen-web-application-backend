@@ -52,10 +52,11 @@ const requireAuth = (req, res, next) => {
     const hdr = req.headers.authorization || "";
     const token = hdr.startsWith("Bearer ") ? hdr.slice(7) : null;
 
+    console.log(token);
+
     if (!token)
       return res.status(401).json({ success: false, message: "Unauthorized" });
     const payload = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-
     req.auth = payload;
     next();
   } catch {

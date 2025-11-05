@@ -5,7 +5,7 @@ import {
   getSubscriptionPlanById,
   updateSubscriptionPlan,
   deleteSubscriptionPlan,
-} from "../controllers/subscriptionPlanController.js";
+} from "../controllers/subscriptioncontroller/index.js";
 import {
   isAuthenticated,
   authorizeRoles,
@@ -15,16 +15,16 @@ const router = express.Router();
 
 router.post(
   "/",
-  isAuthenticated,
-  authorizeRoles("admin"),
+  // isAuthenticated,
+  // authorizeRoles("admin"),
   createSubscriptionPlan
 );
 router.get("/", isAuthenticated, getAllSubscriptionPlans);
 router.get("/:id", isAuthenticated, getSubscriptionPlanById);
 router.patch(
   "/:id",
-  isAuthenticated,
-  authorizeRoles("admin"),
+  // isAuthenticated,
+  // authorizeRoles("admin"),
   updateSubscriptionPlan
 );
 router.delete(
