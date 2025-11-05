@@ -34,6 +34,7 @@ const allowedOrigins = [
   "https://www.cropgenapp.com",
   "https://app.cropgenapp.com",
   "https://cropydeals.cropgenapp.com",
+  "https://test.cropgenapp.com",
   "http://localhost:3000",
   "http://localhost:5173",
 ].filter(Boolean);

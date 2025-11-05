@@ -460,31 +460,31 @@ export const htmlSubscriptionSuccess = (
     <div class="invoice-container">
       <div class="header">
         <div class="logo-box">
-          <img src="https://www.cropgenapp.com/assets/logo.svg" alt="CropGen Logo" />
+          <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/logo.png" alt="CropGen Logo" />
           <span>CropGen</span>
         </div>
 
         <div class="socials">
           <a href="https://www.facebook.com/people/CropGen/61554177574869/" target="_blank">
-            <img src="https://www.cropgenapp.com/assets/facebook.svg" alt="Facebook" />
+            <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/facebook.png" alt="Facebook" />
           </a>
           <a href="https://www.instagram.com/cropgen" target="_blank">
-            <img src="https://www.cropgenapp.com/assets/instagram.svg" alt="Instagram" />
+            <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/insta.png" alt="Instagram" />
           </a>
           <a href="https://x.com/cropgen" target="_blank">
-            <img src="https://www.cropgenapp.com/assets/twitter.svg" alt="Twitter" />
+            <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/twitter.png" alt="Twitter" />
           </a>
           <a href="https://www.linkedin.com/company/cropgen/posts/?feedView=all&viewAsMember=true" target="_blank">
-            <img src="https://www.cropgenapp.com/assets/linkedin.svg" alt="LinkedIn" />
+            <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/linkedin.png" alt="LinkedIn" />
           </a>
           <a href="https://www.youtube.com/channel/UCuU7d-rByYZfMkfoj0Pgq0w" target="_blank">
-            <img src="https://www.cropgenapp.com/assets/youtube.svg" alt="YouTube" />
+            <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/youtube.png" alt="YouTube" />
           </a>
         </div>
       </div>
 
       <div class="illustration">
-        <img src="https://www.cropgenapp.com/assets/illustration.svg" alt="Payment Illustration" />
+        <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/invoice-illustration.png" alt="Payment Illustration" />
       </div>
 
       <div class="payment-info">
@@ -522,7 +522,7 @@ export const htmlSubscriptionSuccess = (
       </div>
 
       <a href="https://app.cropgenapp.com/dashboard" class="btn">
-        <img src="https://www.cropgenapp.com/assets/download.svg" alt="Download" /> Download Invoice PDF
+        <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/download-icon.png" alt="Download" /> Download Invoice PDF
       </a>
 
       <div class="footer">
