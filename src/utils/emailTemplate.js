@@ -1,3 +1,4 @@
+// OTP email template
 export const htmlOtp = (otp) => `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -235,3 +236,313 @@ export const htmlWelcomeBack = (email) => `<!DOCTYPE html>
 </body>
 </html>
 `;
+
+// Subscription Success Invoice email template
+export const htmlSubscriptionSuccess = (
+  userName,
+  planName,
+  hectares,
+  amount,
+  currency,
+  startDate,
+  endDate,
+  nextBillingDate,
+  paymentMethod = "Card",
+  invoiceNumber = "CG/2025/INV-XXXXX"
+) => {
+  const formatDate = (date) => {
+    return new Date(date).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  const symbol = currency === "INR" ? "₹" : "$";
+  const formattedAmount = `${symbol}${parseFloat(amount).toFixed(2)}`;
+  const issuedDate = formatDate(new Date());
+  const billingPeriod = `${formatDate(startDate)} – ${formatDate(endDate)}`;
+
+  // Generate dynamic invoice number (you can improve this logic)
+  const generateInvoiceNumber = () => {
+    const year = new Date().getFullYear();
+    const random = Math.floor(10000 + Math.random() * 90000);
+    return `CG/${year}/INV-${random}`;
+  };
+
+  const finalInvoiceNumber = invoiceNumber.startsWith("CG/")
+    ? invoiceNumber
+    : generateInvoiceNumber();
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CropGen Invoice</title>
+    <style>
+      body {
+        font-family: "Poppins", sans-serif;
+        background-color: #fff;
+        margin: 0;
+        padding: 0;
+        color: #222;
+      }
+
+      .invoice-container {
+        max-width: 600px;
+        margin: 40px auto;
+        background: #f8f8fc;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 25px 25px 10px;
+      }
+
+      .logo-box {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .logo-box img {
+        width: 39px;
+        height: 39px;
+      }
+
+      .logo-box span {
+        font-size: 16px;
+        font-weight: 600;
+        color: #345d13;
+      }
+
+      .socials {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .socials img {
+        opacity: 0.85;
+        transition: 0.2s;
+      }
+
+      .socials img:hover {
+        opacity: 1;
+        transform: scale(1.05);
+      }
+
+      .illustration {
+        text-align: center;
+        padding: 20px;
+      }
+
+      .illustration img {
+        width: 260px;
+        max-width: 100%;
+        height: 270px;
+      }
+
+      .payment-info {
+        text-align: center;
+        padding: 20px;
+        border-bottom: 2px dashed #86d72f;
+        margin: 0 20px;
+      }
+
+      .payment-info h2 {
+        margin: 10px 0;
+        font-size: 26px;
+        color: #000;
+        font-weight: 700;
+      }
+
+      .payment-info p {
+        margin: 6px 0;
+        font-size: 16px;
+        font-weight: 500;
+      }
+
+      .highlight {
+        font-weight: 700;
+        font-size: 20px;
+      }
+
+      .summary-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #000;
+        margin: 20px 30px;
+      }
+
+      .summary {
+        background: #2ab6731a;
+        border-radius: 12px;
+        padding: 20px;
+        margin: 0px 30px 20px;
+        font-size: 15px;
+      }
+
+      .summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        font-size: 14px;
+        color: #000;
+      }
+
+      .summary-row span:first-child {
+        font-weight: 500;
+      }
+
+      .summary-row span:last-child {
+        font-weight: 700;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #345d13;
+        color: #fff;
+        text-align: center;
+        padding: 12px 20px;
+        font-size: 15px;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: 0.3s;
+        margin: 0 30px 20px;
+        cursor: pointer;
+      }
+
+      .footer {
+        font-size: 13px;
+        color: #000;
+        padding: 20px;
+        margin: 0 20px;
+        border-top: 2px dashed #86d72f;
+        line-height: 28px;
+      }
+
+      .footer p {
+        text-align: left;
+        font-weight: 500;
+      }
+
+      .footer a {
+        color: #198754;
+        text-decoration: none;
+      }
+
+      .footer small {
+        display: block;
+        margin-top: 10px;
+        font-style: italic;
+        color: black;
+        text-align: center;
+      }
+
+      .footer span {
+        display: block;
+        text-align: center;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="invoice-container">
+      <div class="header">
+        <div class="logo-box">
+          <img src="https://www.cropgenapp.com/assets/logo.svg" alt="CropGen Logo" />
+          <span>CropGen</span>
+        </div>
+
+        <div class="socials">
+          <a href="https://www.facebook.com/people/CropGen/61554177574869/" target="_blank">
+            <img src="https://www.cropgenapp.com/assets/facebook.svg" alt="Facebook" />
+          </a>
+          <a href="https://www.instagram.com/cropgen" target="_blank">
+            <img src="https://www.cropgenapp.com/assets/instagram.svg" alt="Instagram" />
+          </a>
+          <a href="https://x.com/cropgen" target="_blank">
+            <img src="https://www.cropgenapp.com/assets/twitter.svg" alt="Twitter" />
+          </a>
+          <a href="https://www.linkedin.com/company/cropgen/posts/?feedView=all&viewAsMember=true" target="_blank">
+            <img src="https://www.cropgenapp.com/assets/linkedin.svg" alt="LinkedIn" />
+          </a>
+          <a href="https://www.youtube.com/channel/UCuU7d-rByYZfMkfoj0Pgq0w" target="_blank">
+            <img src="https://www.cropgenapp.com/assets/youtube.svg" alt="YouTube" />
+          </a>
+        </div>
+      </div>
+
+      <div class="illustration">
+        <img src="https://www.cropgenapp.com/assets/illustration.svg" alt="Payment Illustration" />
+      </div>
+
+      <div class="payment-info">
+        <h2>Your Payment Successful</h2>
+        <p>
+          Thank you for your payment of
+          <span class="highlight">${formattedAmount}</span> on
+          <span class="highlight">${issuedDate}</span>
+        </p>
+        <p>Using ${paymentMethod}</p>
+      </div>
+
+      <h4 class="summary-title">Invoice Summary Box:</h4>
+
+      <div class="summary">
+        <div class="summary-row">
+          <span>Invoice No.</span><span>${finalInvoiceNumber}</span>
+        </div>
+        <div class="summary-row">
+          <span>Date Issued</span><span>${issuedDate}</span>
+        </div>
+        <div class="summary-row">
+          <span>Plan</span><span>${planName} - ${hectares} ha</span>
+        </div>
+        <div class="summary-row">
+          <span>Billing Period</span><span>${billingPeriod}</span>
+        </div>
+        <div class="summary-row">
+          <span>Amount Due</span><span>${formattedAmount}</span>
+        </div>
+        <div class="summary-row">
+          <span>Payment Status</span>
+          <span>Paid (${paymentMethod})</span>
+        </div>
+      </div>
+
+      <a href="https://app.cropgenapp.com/dashboard" class="btn">
+        <img src="https://www.cropgenapp.com/assets/download.svg" alt="Download" /> Download Invoice PDF
+      </a>
+
+      <div class="footer">
+        <p>
+          You can view and manage your invoices anytime from your CropGen
+          Dashboard.<br />
+          For queries, contact
+          <a href="mailto:support@cropgen.in">support@cropgen.in</a>
+        </p>
+        <small>
+          This email was sent to you by CropGen - AI-Powered Crop Monitoring &
+          Precision Farming
+        </small>
+        <span>
+          <a href="https://app.cropgenapp.com/login">Visit Dashboard</a> |
+          <a href="https://www.cropgenapp.com/contact">Contact us</a>
+        </span>
+      </div>
+    </div>
+  </body>
+</html>
+  `;
+};

@@ -104,7 +104,7 @@ export const createUserSubscription = async (req, res) => {
         plan_id: basePlanId,
         total_count: billingCycle === "yearly" ? 12 : 30,
         quantity: 1,
-        customer_notify: 1,
+        customer_notify: 0,
         addons: [
           {
             item: {
