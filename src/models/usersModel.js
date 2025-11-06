@@ -17,9 +17,6 @@ const userSchema = new Schema(
       unique: true,
       sparse: true,
     },
-    password: {
-      type: String,
-    },
     phone: {
       type: String,
       validate: {
@@ -58,14 +55,6 @@ const userSchema = new Schema(
     refreshTokenId: { type: String, default: null },
     firebaseUid: {
       type: String,
-      default: null,
-    },
-    resetPasswordToken: {
-      type: String,
-      default: null,
-    },
-    resetPasswordExpires: {
-      type: Date,
       default: null,
     },
   },

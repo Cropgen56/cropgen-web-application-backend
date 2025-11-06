@@ -1,6 +1,5 @@
 import express from "express";
 import {
-  signin,
   getAllUsers,
   getUserById,
   deleteUserById,
@@ -11,8 +10,6 @@ import {
   signupWithFirebase,
   isUserExist,
   loginWithPhone,
-  forgotPassword,
-  resetPassword,
   getUser,
 } from "../controllers/authController.js";
 
@@ -38,13 +35,6 @@ const router = express.Router();
 
 // login with google mobile application
 router.post("/google-mobile", googleLoginMobile);
-
-// admin panel login route
-router.post("/signin", signin);
-
-// forgot password controller
-router.post("/forgot-password", forgotPassword);
-router.post("/reset-password", resetPassword);
 
 router.get(
   "/users",
