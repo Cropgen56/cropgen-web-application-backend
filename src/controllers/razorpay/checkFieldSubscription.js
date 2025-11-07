@@ -26,7 +26,6 @@ export const checkFieldSubscription = async (req, res) => {
       });
     }
 
-    // Optional: Calculate days left
     const daysLeft = activeSub.endDate
       ? Math.max(
           0,

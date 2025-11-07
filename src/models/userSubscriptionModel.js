@@ -1,3 +1,4 @@
+// src/models/userSubscriptionModel.js
 import mongoose from "mongoose";
 const { Schema } = mongoose;
 
@@ -15,13 +16,11 @@ const UserSubscriptionSchema = new Schema(
       required: true,
       index: true,
     },
-
     planId: {
       type: Schema.Types.ObjectId,
       ref: "SubscriptionPlan",
       required: true,
     },
-
     hectares: { type: Number, min: 0, required: true },
     currency: { type: String, enum: ["INR", "USD"], required: true },
     billingCycle: {
@@ -60,7 +59,7 @@ const UserSubscriptionSchema = new Schema(
   { timestamps: true }
 );
 
-// One active subscription per field (optional)
+// Optional: One active subscription per field (non-unique)
 UserSubscriptionSchema.index({ fieldId: 1, active: 1 }, { unique: false });
 
 const UserSubscription =
