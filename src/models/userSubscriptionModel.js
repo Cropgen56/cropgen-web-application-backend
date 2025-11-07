@@ -1,4 +1,3 @@
-// src/models/userSubscriptionModel.js
 import mongoose from "mongoose";
 const { Schema } = mongoose;
 
