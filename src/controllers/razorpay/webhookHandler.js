@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import Razorpay from "razorpay";
-import UserSubscription from "../../models/UserSubscriptionModel.js";
+import UserSubscription from "../../models/userSubscriptionModel.js";
 import { mapStatus } from "./utils/mapStatus.js";
 import { savePayment } from "./utils/savePayment.js";
 
