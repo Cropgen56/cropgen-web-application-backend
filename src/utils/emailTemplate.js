@@ -237,7 +237,7 @@ export const htmlWelcomeBack = (email) => `<!DOCTYPE html>
 </html>
 `;
 
-// utils/emailTemplate.js
+// successfully subscription email template
 export const htmlSubscriptionSuccess = (
   userName,
   planName,
@@ -409,4 +409,85 @@ export const htmlSubscriptionSuccess = (
 </body>
 </html>
   `;
+};
+
+// admin otp email template
+// src/utils/emailTemplate.js
+
+export const htmlAdminOtp = (code, userName = "Farmer") => {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Confirm Verification Code</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Poppins", sans-serif; }
+    body { background: #ffffff; padding: 40px 0; display: flex; justify-content: center; }
+    .email-container { width: 600px; border-radius: 12px; padding: 30px 40px; background: #ffffff; border: 1px solid #e5e7eb; }
+    .logo { display: flex; align-items: center; gap: 12px; margin-bottom: 30px; }
+    .logo img { width: 57px; height: auto; }
+    .logo h2 { font-size: 18px; font-weight: 600; color: #345d13; }
+    .title { font-size: 32px; font-weight: bold; margin-bottom: 25px; color: #000; }
+    .message-wrapper p { font-size: 15px; line-height: 24px; font-weight: 500; color: #000000; margin-bottom: 12px; }
+    .otp-wrapper { display: flex; gap: 18px; justify-content: flex-start; margin: 30px 0; }
+    .otp-box { width: 55px; height: 55px; border: 2px solid #9a9898; border-radius: 8px; font-size: 28px; font-weight: 700; color: #000; display: flex; justify-content: center; align-items: center; background: #effff7; }
+    .security-note { margin: 20px 0; font-size: 14px; color: #d00; font-weight: 600; }
+    .divider { margin: 30px 0; border-top: 2px dashed #86d72f; }
+    footer { text-align: center; font-size: 13px; color: #6b7280; }
+    .footer-links a { margin: 0 10px; text-decoration: none; color: #000; font-weight: 400; }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="logo">
+      <img src="https://cropgen-assets.s3.ap-south-1.amazonaws.com/cropgen/logo1.png" alt="CropGen Logo" />
+      <h2>CropGen</h2>
+    </div>
+
+    <h2 class="title">Confirm Verification Code</h2>
+    <div class="message-wrapper">
+      <p>Hello <strong>${userName || "Admin"}</strong>,</p>
+      <p>We received a request to log in to your <strong>CropGen Admin Account</strong>.</p>
+      <p>Please use the One-Time Password (OTP) below to complete your login:</p>
+
+      <div class="otp-wrapper">
+        ${code
+          .split("")
+          .map((digit) => `<div class="otp-box">${digit}</div>`)
+          .join("")}
+      </div>
+
+      <p>This code is valid for <strong>10 minutes</strong> and can be used only once.</p>
+      <p class="security-note">
+        ⚠️ This is an <strong>ADMIN</strong> login attempt. If you didn’t initiate this, secure your account immediately.
+      </p>
+      <p>If you didn’t request this, ignore this email or contact us at <a href="mailto:security@cropgen.in">security@cropgen.in</a></p>
+    </div>
+
+    <div style="margin: 20px 0;">
+      <p style="margin-bottom: 0">Stay secure,</p>
+      <p style="margin-bottom: 0"><strong>Team CropGen 🌾</strong></p>
+      <p style="margin-bottom: 0">
+        <a href="mailto:support@cropgen.in" style="color: #345d13; text-decoration: none;">support@cropgen.in</a>
+      </p>
+    </div>
+
+    <div class="divider"></div>
+
+    <footer>
+      <p><strong>CropGen - AI + Satellite Intelligence for Smarter Farming</strong></p>
+      <p style="margin-top: 20px; font-size: 12px; font-style: italic;">
+        This email was sent by CropGen – AI-Powered Crop Monitoring & Precision Farming
+      </p>
+      <p class="footer-links">
+        <a href="https://app.cropgenapp.com/admin">Admin Dashboard</a> |
+        <a href="https://app.cropgenapp.com/help">Contact Support</a>
+      </p>
+    </footer>
+  </div>
+</body>
+</html>
+  `.trim();
 };

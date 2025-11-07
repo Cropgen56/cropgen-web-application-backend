@@ -1,164 +1,79 @@
 import jwt from "jsonwebtoken";
 import User from "../models/usersModel.js";
 import Organization from "../models/organizationModel.js";
-import nodemailer from "nodemailer";
+import { OAuth2Client } from "google-auth-library";
 import admin from "firebase-admin";
-import crypto from "crypto";
 
-// Configure nodemailer transport
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const clientMobile = new OAuth2Client(process.env.MOBILE_GOOGLE_CLIENT_ID);
 
-// admin login
-export const signin = async (req, res) => {
+// Google login controller
+export const googleLoginMobile = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { token } = req.body;
 
-    // Validate input
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "Email and password are required.",
-      });
-    }
+    // Verify token with Google
+    const ticket = await clientMobile.verifyIdToken({
+      idToken: token,
+      audience: process.env.MOBILE_GOOGLE_CLIENT_ID,
+    });
 
-    // Check for existing user
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found.",
-      });
-    }
+    const payloadData = ticket.getPayload();
 
-    // Verify password
-    if (password !== user.password) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid password.",
-      });
-    }
+    const { email, name, picture, sub } = payloadData;
 
-    // Fetch organization
-    const organization = await Organization.findById(user.organization);
+    // Split full name into first and last name
+    const nameParts = name.split(" ");
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(" ") || "";
+
+    // Check if the user already exists in the database
+    let user = await User.findOne({ email });
+
+    // Convert code to uppercase or default to 'CROPGEN'
+    const orgCode = "CROPGEN";
+
+    // Find organization (case-insensitive, always uppercase)
+    const organization = await Organization.findOne({
+      organizationCode: orgCode,
+    });
+
     if (!organization) {
       return res.status(404).json({
         success: false,
-        message: "Organization not found.",
+        message: `Organization '${orgCode}' not found.`,
       });
     }
 
-    // Generate JWT token
-    const token = jwt.sign(
-      {
-        id: user._id,
-        email: user.email,
-        role: user.role,
-        organization: user.organization,
-      },
-      process.env.JWT_ACCESS_SECRET,
-      { expiresIn: "15d" }
-    );
+    if (!user) {
+      // If the user does not exist, create a new one
+      user = new User({
+        firstName,
+        lastName,
+        email,
+        role: "farmer",
+        terms: true,
+        organization: organization._id,
+      });
 
-    // Return response
-    return res.status(200).json({
-      success: true,
-      message: "User signed in successfully.",
-      token,
+      await user.save();
+    }
+
+    // Generate JWT Token for authentication
+    const payload = {
+      id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
       role: user.role,
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role,
-        organizationCode: organization.organizationCode,
-      },
-    });
-  } catch (error) {
-    console.error("Login Error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error.",
-      error: error.message,
-    });
-  }
-};
-
-// Forgot Password Handler
-export const forgotPassword = async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    // Check if user exists
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Generate reset token (store directly without hashing)
-    const resetToken = crypto.randomBytes(32).toString("hex");
-
-    // Set token and expiry on user
-    user.resetPasswordToken = resetToken;
-    user.resetPasswordExpires = Date.now() + 3600000;
-    await user.save();
-
-    // Create reset URL
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
-
-    // Email configuration
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "Password Reset Request",
-      html: `
-        <h2>Password Reset</h2>
-        <p>You requested a password reset. Click the link below to reset your password:</p>
-        <a href="${resetUrl}">Reset Password</a>
-        <p>This link will expire in 1 hour.</p>
-        <p>If you didn't request this, please ignore this email.</p>
-      `,
+      organization: user.organization,
     };
+    const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: "15d" });
 
-    // Send email
-    await transporter.sendMail(mailOptions);
-
-    res.status(200).json({ message: "Password reset email sent" });
+    res.json({ success: true, accessToken, user });
   } catch (error) {
-    console.error("Error in forgotPassword:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-// Reset Password Handler
-export const resetPassword = async (req, res) => {
-  try {
-    const { token, newPassword } = req.body;
-
-    // Find user with valid token and non-expired
-    const user = await User.findOne({
-      resetPasswordToken: token,
-      resetPasswordExpires: { $gt: Date.now() },
-    });
-
-    if (!user) {
-      return res.status(400).json({ message: "Invalid or expired token" });
-    }
-
-    // Directly save the new password (no hashing)
-    user.password = newPassword;
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpires = undefined;
-    await user.save();
-
-    res.status(200).json({ message: "Password reset successful" });
-  } catch (error) {
-    console.error("Error in resetPassword:", error);
-    res.status(500).json({ message: "Server error" });
+    res
+      .status(400)
+      .json({ success: false, message: "Invalid Google Token", error });
   }
 };
 

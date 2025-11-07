@@ -1,6 +1,5 @@
 import express from "express";
 import {
-  signin,
   getAllUsers,
   getUserById,
   deleteUserById,
@@ -10,8 +9,6 @@ import {
   signupWithFirebase,
   isUserExist,
   loginWithPhone,
-  forgotPassword,
-  resetPassword,
   getUser,
 } from "../controllers/authController.js";
 
@@ -24,6 +21,7 @@ import {
   logoutHandler,
   loginWithGoogleWeb,
   loginWithGoogleMobile,
+  requestAdminOtp,
 } from "../controllers/authcontroller/index.js";
 
 import { requireAuth } from "../middleware/authMiddleware.js";
@@ -35,13 +33,6 @@ import {
 } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
-
-// admin panel login route
-router.post("/signin", signin);
-
-// forgot password controller
-router.post("/forgot-password", forgotPassword);
-router.post("/reset-password", resetPassword);
 
 router.get(
   "/users",
@@ -89,6 +80,9 @@ router.post("/logout", logoutHandler);
 
 // login with google routes web application
 router.post("/google", loginWithGoogleWeb);
+
+// request admin otp
+router.post("/admin-otp", requestAdminOtp);
 
 // cropydeals register login api
 router.post("/cropydeal-register-login", cropydealsRegisterLogin);

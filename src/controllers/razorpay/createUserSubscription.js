@@ -1,5 +1,5 @@
 import Razorpay from "razorpay";
-import UserSubscription from "../../models/UserSubscriptionModel.js";
+import UserSubscription from "../../models/userSubscriptionModel.js";
 import SubscriptionPlan from "../../models/SubscriptionPlanModel.js";
 import { mapStatus } from "./utils/mapStatus.js";
 
@@ -43,6 +43,49 @@ export const createUserSubscription = async (req, res) => {
       return res
         .status(400)
         .json({ success: false, message: "Pricing not ready" });
+    }
+
+    const existingActive = await UserSubscription.findOne({
+      fieldId,
+      userId,
+      active: true,
+      status: "active",
+    }).select("planId endDate nextBillingAt");
+
+    if (existingActive) {
+      const activePlan = await SubscriptionPlan.findById(
+        existingActive.planId
+      ).lean();
+
+      return res.status(400).json({
+        success: false,
+        message: "This field already has an active subscription!",
+        existingSubscription: {
+          planName: activePlan?.name || "Unknown Plan",
+          endDate: existingActive.endDate,
+          nextBillingAt: existingActive.nextBillingAt,
+          subscriptionId: existingActive._id,
+        },
+      });
+    }
+
+    const pendingSub = await UserSubscription.findOne({
+      fieldId,
+      userId,
+      status: "pending",
+      razorpaySubscriptionId: { $ne: null },
+    });
+
+    if (pendingSub) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "A subscription is already being processed. Please complete payment or try again later.",
+        pendingSubscription: {
+          subscriptionRecordId: pendingSub._id,
+          razorpaySubscriptionId: pendingSub.razorpaySubscriptionId,
+        },
+      });
     }
 
     // Trial

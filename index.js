@@ -15,7 +15,7 @@ import operationRoutes from "./src/routes/operationRoutes.js";
 import cropRoutes from "./src/routes/cropRoutes.js";
 import emailRoutes from "./src/routes/emailRoutes.js";
 import "./src/config/firebaseConfig.js";
-import subscriptionRoutes from "./src/routes/subscriptionPlans.js";
+import subscriptionRoutes from "./src/routes/subscriptionPlansRoutes.js";
 import razorpayRoutes from "./src/routes/razorpayRoutes.js";
 
 dotenv.config();

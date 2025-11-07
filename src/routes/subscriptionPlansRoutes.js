@@ -5,7 +5,7 @@ import {
   getSubscriptionPlanById,
   updateSubscriptionPlan,
   deleteSubscriptionPlan,
-} from "../controllers/subscriptioncontroller/index.js";
+} from "../controllers/subscriptionplancontroller/index.js";
 import {
   isAuthenticated,
   authorizeRoles,

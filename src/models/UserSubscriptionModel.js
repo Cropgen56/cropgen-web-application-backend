@@ -63,4 +63,8 @@ const UserSubscriptionSchema = new Schema(
 // One active subscription per field (optional)
 UserSubscriptionSchema.index({ fieldId: 1, active: 1 }, { unique: false });
 
-export default mongoose.model("UserSubscription", UserSubscriptionSchema);
+const UserSubscription =
+  mongoose.models.UserSubscription ||
+  mongoose.model("UserSubscription", UserSubscriptionSchema);
+
+export default UserSubscription;
