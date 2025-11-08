@@ -1,12 +1,11 @@
 import Joi from "joi";
 
-// Joi validation schemas
 const pricingSchema = Joi.object({
   currency: Joi.string().valid("INR", "USD").required(),
   billingCycle: Joi.string().valid("monthly", "yearly", "trial").required(),
   amountMinor: Joi.number().integer().min(0).required(),
   unit: Joi.string().valid("hectare", "user", "flat").default("hectare"),
-  razorpayPlanId: Joi.string().allow(null, ""), // Auto-generated, optional in input
+  razorpayPlanId: Joi.string().allow(null, ""),
 });
 
 export const subscriptionPlanSchema = Joi.object({
@@ -16,7 +15,7 @@ export const subscriptionPlanSchema = Joi.object({
   maxUsers: Joi.number().integer().min(1).default(1),
   isTrial: Joi.boolean().default(false),
   trialDays: Joi.number().integer().min(0).default(0),
-  pricing: Joi.array().items(pricingSchema).min(1),
+  pricing: Joi.array().items(pricingSchema),
   features: Joi.object({
     graphHistoricalData: Joi.boolean().default(false),
     satelliteCropMonitoring: Joi.boolean().default(false),

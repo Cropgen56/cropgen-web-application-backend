@@ -29,9 +29,7 @@ const UserSubscriptionSchema = new Schema(
     },
     amountMinor: { type: Number, min: 0, required: true },
 
-    // Razorpay identifiers
     razorpaySubscriptionId: { type: String, default: null },
-    razorpayCustomerId: { type: String, default: null },
     razorpayLastInvoiceId: { type: String, default: null },
 
     status: {

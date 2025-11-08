@@ -33,18 +33,47 @@ export const createUserSubscription = async (req, res) => {
         .json({ success: false, message: "Plan not active" });
     }
 
+    // === TRIAL PLAN: SKIP PRICING CHECK ENTIRELY ===
+    if (plan.isTrial) {
+      const sub = await UserSubscription.create({
+        userId,
+        fieldId,
+        planId,
+        hectares: parseFloat(hectares),
+        currency,
+        billingCycle,
+        amountMinor: 0,
+        status: "active",
+        active: true,
+        startDate: new Date(),
+        endDate: new Date(Date.now() + plan.trialDays * 24 * 60 * 60 * 1000),
+        notes: { isTrial: true },
+      });
+
+      return res.status(201).json({
+        success: true,
+        data: {
+          subscriptionRecordId: sub._id,
+          isTrial: true,
+        },
+      });
+    }
+
+    // === PAID PLAN ONLY: NOW CHECK PRICING ===
     const pricing = plan.pricing.find(
       (p) =>
         p.currency === currency &&
         p.billingCycle === billingCycle &&
         p.unit === "hectare"
     );
+
     if (!pricing) {
       return res
         .status(400)
         .json({ success: false, message: "Pricing not ready" });
     }
 
+    // Check for existing active subscription
     const existingActive = await UserSubscription.findOne({
       fieldId,
       userId,
@@ -69,6 +98,7 @@ export const createUserSubscription = async (req, res) => {
       });
     }
 
+    // Check for pending Razorpay subscription
     const pendingSub = await UserSubscription.findOne({
       fieldId,
       userId,
@@ -85,28 +115,6 @@ export const createUserSubscription = async (req, res) => {
           subscriptionRecordId: pendingSub._id,
           razorpaySubscriptionId: pendingSub.razorpaySubscriptionId,
         },
-      });
-    }
-
-    // Trial
-    if (plan.isTrial) {
-      const sub = await UserSubscription.create({
-        userId,
-        fieldId,
-        planId,
-        hectares,
-        currency,
-        billingCycle,
-        amountMinor: 0,
-        status: "active",
-        active: true,
-        startDate: new Date(),
-        endDate: new Date(Date.now() + plan.trialDays * 86400000),
-        notes: { isTrial: true },
-      });
-      return res.status(201).json({
-        success: true,
-        data: { subscriptionRecordId: sub._id, isTrial: true },
       });
     }
 
@@ -154,11 +162,10 @@ export const createUserSubscription = async (req, res) => {
               name: `${plan.name} - ${hectaresFloat} ha`,
               amount: realAmountMinor,
               currency,
-              description: `Rate: ₹${
+              description: `Rate: ${currency === "INR" ? "₹" : "$"}${
                 pricing.amountMinor / 100
               }/ha × ${hectaresFloat} ha`,
             },
-            quantity: 1,
           },
         ],
         notes: {
@@ -177,10 +184,11 @@ export const createUserSubscription = async (req, res) => {
       return res.status(500).json({
         success: false,
         message: "Failed to create subscription with Razorpay",
+        error: err.message,
       });
     }
 
-    // Update local
+    // Update local subscription with Razorpay details
     localSub.razorpaySubscriptionId = rpSub.id;
     localSub.razorpayCustomerId = rpSub.customer_id || null;
     localSub.status = mapStatus(rpSub.status);
@@ -189,6 +197,7 @@ export const createUserSubscription = async (req, res) => {
     }
     await localSub.save();
 
+    // Success response
     res.status(201).json({
       success: true,
       data: {
