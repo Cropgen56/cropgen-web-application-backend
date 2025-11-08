@@ -1,7 +1,7 @@
 import Razorpay from "razorpay";
-import UserSubscription from "../../models/userSubscriptionModel.js";
 import SubscriptionPlan from "../../models/SubscriptionPlanModel.js";
 import { mapStatus } from "./utils/mapStatus.js";
+import UserSubscription from "../../models/userSubscriptionModel.js";
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
