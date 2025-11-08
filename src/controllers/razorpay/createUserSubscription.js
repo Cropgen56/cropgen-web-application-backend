@@ -33,7 +33,7 @@ export const createUserSubscription = async (req, res) => {
         .json({ success: false, message: "Plan not active" });
     }
 
-    // === TRIAL PLAN: SKIP PRICING CHECK ENTIRELY ===
+    // === TRIAL PLAN ===
     if (plan.isTrial) {
       const sub = await UserSubscription.create({
         userId,
@@ -52,40 +52,34 @@ export const createUserSubscription = async (req, res) => {
 
       return res.status(201).json({
         success: true,
-        data: {
-          subscriptionRecordId: sub._id,
-          isTrial: true,
-        },
+        data: { subscriptionRecordId: sub._id, isTrial: true },
       });
     }
 
-    // === PAID PLAN ONLY: NOW CHECK PRICING ===
+    // === PAID PLAN PRICING ===
     const pricing = plan.pricing.find(
       (p) =>
         p.currency === currency &&
         p.billingCycle === billingCycle &&
         p.unit === "hectare"
     );
-
     if (!pricing) {
       return res
         .status(400)
         .json({ success: false, message: "Pricing not ready" });
     }
 
-    // Check for existing active subscription
+    // Existing checks
     const existingActive = await UserSubscription.findOne({
       fieldId,
       userId,
       active: true,
-      status: "active",
-    }).select("planId endDate nextBillingAt");
-
+      status: { $in: ["active", "authenticated"] },
+    });
     if (existingActive) {
       const activePlan = await SubscriptionPlan.findById(
         existingActive.planId
       ).lean();
-
       return res.status(400).json({
         success: false,
         message: "This field already has an active subscription!",
@@ -98,19 +92,16 @@ export const createUserSubscription = async (req, res) => {
       });
     }
 
-    // Check for pending Razorpay subscription
     const pendingSub = await UserSubscription.findOne({
       fieldId,
       userId,
       status: "pending",
       razorpaySubscriptionId: { $ne: null },
     });
-
     if (pendingSub) {
       return res.status(400).json({
         success: false,
-        message:
-          "A subscription is already being processed. Please complete payment or try again later.",
+        message: "A subscription is already being processed.",
         pendingSubscription: {
           subscriptionRecordId: pendingSub._id,
           razorpaySubscriptionId: pendingSub.razorpaySubscriptionId,
@@ -118,7 +109,7 @@ export const createUserSubscription = async (req, res) => {
       });
     }
 
-    // Paid: Calculate real amount
+    // Amount
     const hectaresFloat = parseFloat(hectares);
     const realAmountMinor = Math.round(pricing.amountMinor * hectaresFloat);
 
@@ -134,7 +125,7 @@ export const createUserSubscription = async (req, res) => {
       active: false,
     });
 
-    // ₹1 Base Plan
+    // Base plans
     const BASE_PLANS = {
       INR: process.env.RAZORPAY_BASE_PLAN_INR,
       USD: process.env.RAZORPAY_BASE_PLAN_USD,
@@ -144,27 +135,25 @@ export const createUserSubscription = async (req, res) => {
       await UserSubscription.deleteOne({ _id: localSub._id });
       return res.status(400).json({
         success: false,
-        message: `Base plan not configured for currency: ${currency}`,
+        message: `Base plan not configured for ${currency}`,
       });
     }
 
-    // Create Razorpay subscription
+    // FINAL RAZORPAY CALL - LIVE MODE SAFE
     let rpSub;
     try {
       rpSub = await razorpay.subscriptions.create({
         plan_id: basePlanId,
-        total_count: billingCycle === "yearly" ? 12 : 30,
+        total_count: 999, // ← WORKS IN LIVE MODE (infinite)
         quantity: 1,
-        customer_notify: 0,
+        customer_notify: 1,
         addons: [
           {
             item: {
-              name: `${plan.name} - ${hectaresFloat} ha`,
+              name: `${plan.name} - ${hectaresFloat.toFixed(4)} ha`,
               amount: realAmountMinor,
               currency,
-              description: `Rate: ${currency === "INR" ? "₹" : "$"}${
-                pricing.amountMinor / 100
-              }/ha × ${hectaresFloat} ha`,
+              description: `${billingCycle} recurring`,
             },
           },
         ],
@@ -172,32 +161,31 @@ export const createUserSubscription = async (req, res) => {
           userId: String(userId),
           fieldId: String(fieldId),
           userSubscriptionId: String(localSub._id),
-          hectares: String(hectaresFloat),
+          hectares: hectaresFloat.toFixed(4),
           realAmountMinor: String(realAmountMinor),
-          baseAmountMinor: "100",
-          note: "₹1 is base fee, real charge is in addon",
+          billingCycle,
         },
       });
     } catch (err) {
-      console.error("Razorpay subscription creation failed:", err);
+      console.error("Razorpay error:", JSON.stringify(err, null, 2));
       await UserSubscription.deleteOne({ _id: localSub._id });
       return res.status(500).json({
         success: false,
         message: "Failed to create subscription with Razorpay",
-        error: err.message,
+        razorpayError: err.error?.description || err.message,
       });
     }
 
-    // Update local subscription with Razorpay details
+    // Save Razorpay data
     localSub.razorpaySubscriptionId = rpSub.id;
     localSub.razorpayCustomerId = rpSub.customer_id || null;
     localSub.status = mapStatus(rpSub.status);
-    if (rpSub.charge_at) {
+    if (rpSub.charge_at)
       localSub.nextBillingAt = new Date(rpSub.charge_at * 1000);
-    }
+    if (rpSub.current_end)
+      localSub.endDate = new Date(rpSub.current_end * 1000);
     await localSub.save();
 
-    // Success response
     res.status(201).json({
       success: true,
       data: {
@@ -212,7 +200,7 @@ export const createUserSubscription = async (req, res) => {
     if (localSub?._id) {
       await UserSubscription.deleteOne({ _id: localSub._id }).catch(() => {});
     }
-    console.error("createUserSubscription error:", e);
+    console.error("Server error:", e);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
