@@ -73,12 +73,10 @@ export const createUserSubscription = async (req, res) => {
     }
 
     if (!Number.isFinite(hectaresFloat) || hectaresFloat <= 0) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Area must be a positive number (> 0)",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Area must be a positive number (> 0)",
+      });
     }
 
     const plan = await SubscriptionPlan.findById(planId).lean();
@@ -98,6 +96,7 @@ export const createUserSubscription = async (req, res) => {
         currency,
         billingCycle,
         amountMinor: 0,
+        totalAmountMinor: 0,
         status: "active",
         active: true,
         startDate: new Date(),
@@ -128,12 +127,10 @@ export const createUserSubscription = async (req, res) => {
       (p) => p.currency === currency && p.billingCycle === billingCycle
     );
     if (!pricing) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Pricing not configured for selected currency/billing cycle",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Pricing not configured for selected currency/billing cycle",
+      });
     }
 
     const pricingUnit = pricing.unit || "hectare";
@@ -148,12 +145,12 @@ export const createUserSubscription = async (req, res) => {
       pricePerHectareMinor = pricing.amountMinor; // fallback
     }
 
-    // Compute total in minor units
+    // Compute total addon in minor units (addon = area charge)
     const rawTotalMinor = pricePerHectareMinor * hectaresFloat;
-    const realAmountMinor = Math.round(rawTotalMinor);
+    const addonAmountMinor = Math.round(rawTotalMinor);
 
     // Debug log to help investigate production vs local differences.
-    console.log("createUserSubscription debug:", {
+    console.log("createUserSubscription debug (pre-check):", {
       env: process.env.NODE_ENV || "unknown",
       planId,
       fieldId,
@@ -164,21 +161,18 @@ export const createUserSubscription = async (req, res) => {
       pricePerHectareMinor,
       hectares: hectaresFloat,
       rawTotalMinor,
-      realAmountMinor,
+      addonAmountMinor,
       basePlanIdEnv: BASE_PLANS[currency] || null,
     });
 
-    // Enforce minimum allowed by Razorpay for the currency
+    // Enforce minimum allowed by Razorpay for the currency on the addon if you want (optional)
+    // Note: Razorpay rejects invoice if total (base + addon) < minimum. We'll check addon now and ensure later we compute total.
     const minForCurrency = MIN_AMOUNT_MINOR[currency] ?? 100;
-    if (realAmountMinor < minForCurrency) {
+    if (addonAmountMinor < 0) {
       return res.status(400).json({
         success: false,
-        message: `Computed amount ${(
-          realAmountMinor / Math.pow(10, currencyDecimals[currency] || 2)
-        ).toFixed(2)} ${currency} is below the allowed minimum of ${(
-          minForCurrency / Math.pow(10, currencyDecimals[currency] || 2)
-        ).toFixed(2)} ${currency}. Increase area or plan price.`,
-        debug: { realAmountMinor, minForCurrency },
+        message: `Computed addon amount invalid.`,
+        debug: { addonAmountMinor },
       });
     }
 
@@ -231,7 +225,8 @@ export const createUserSubscription = async (req, res) => {
       hectares: Number(hectaresFloat.toFixed(6)),
       currency,
       billingCycle,
-      amountMinor: realAmountMinor,
+      amountMinor: addonAmountMinor, // addon only stored here for backward compatibility
+      totalAmountMinor: 0, // will update after fetching plan amount
       status: "pending",
       active: false,
       notes: {
@@ -244,6 +239,7 @@ export const createUserSubscription = async (req, res) => {
           pricePerUnitMinor: pricing.amountMinor,
           pricePerHectareMinor,
           hectares: Number(hectaresFloat.toFixed(6)),
+          addonAmountMinor,
           computedAt: new Date(),
         },
         polygonProvided: !!polygon,
@@ -262,19 +258,19 @@ export const createUserSubscription = async (req, res) => {
       });
     }
 
-    // Create Razorpay subscription
+    // Create Razorpay subscription (base plan + addon)
     let rpSub;
     try {
       rpSub = await razorpay.subscriptions.create({
         plan_id: basePlanId,
         total_count: 999,
         quantity: 1,
-        customer_notify: 1,
+        customer_notify: 0,
         addons: [
           {
             item: {
               name: `${plan.name} - ${hectaresFloat.toFixed(4)} ha`,
-              amount: realAmountMinor,
+              amount: addonAmountMinor,
               currency,
               description: `${billingCycle} recurring`,
             },
@@ -285,7 +281,7 @@ export const createUserSubscription = async (req, res) => {
           fieldId: String(fieldId),
           userSubscriptionId: String(localSub._id),
           hectares: hectaresFloat.toFixed(4),
-          realAmountMinor: String(realAmountMinor),
+          addonAmountMinor: String(addonAmountMinor),
           billingCycle,
         },
       });
@@ -303,7 +299,27 @@ export const createUserSubscription = async (req, res) => {
       });
     }
 
-    // Save Razorpay metadata
+    // --- NEW: fetch base plan amount from Razorpay to compute total charged amount ---
+    let basePlanAmountMinor = 0;
+    try {
+      const rpPlan = await razorpay.plans.fetch(basePlanId);
+      // try common fields where amount may be present
+      basePlanAmountMinor =
+        rpPlan?.item?.amount ?? rpPlan?.amount ?? rpPlan?.amount_minor ?? 0;
+      basePlanAmountMinor = Number(basePlanAmountMinor) || 0;
+    } catch (planErr) {
+      console.warn(
+        "Failed to fetch Razorpay plan details:",
+        planErr?.message || planErr
+      );
+      // fallback to 0 (we still save addon), but log warning. Ideally persist base plan amounts in DB/ENV.
+      basePlanAmountMinor = 0;
+    }
+
+    const addonMinor = Number(addonAmountMinor) || 0;
+    const totalAmountMinor = Number(basePlanAmountMinor) + addonMinor;
+
+    // Update localSub with razorpay metadata and computed totals
     localSub.razorpaySubscriptionId = rpSub.id;
     localSub.razorpayCustomerId = rpSub.customer_id || null;
     localSub.status = mapStatus(rpSub.status) || "pending";
@@ -311,6 +327,21 @@ export const createUserSubscription = async (req, res) => {
       localSub.nextBillingAt = new Date(rpSub.charge_at * 1000);
     if (rpSub.current_end)
       localSub.endDate = new Date(rpSub.current_end * 1000);
+
+    // Set both addon and total amounts in DB
+    localSub.amountMinor = addonMinor; // addon (backwards compat)
+    localSub.totalAmountMinor = totalAmountMinor; // base + addon (new)
+    localSub.notes = localSub.notes || {};
+    localSub.notes.pricingSnapshot = {
+      ...(localSub.notes.pricingSnapshot || {}),
+      razorpayPlanId: basePlanId,
+      basePlanAmountMinor,
+      addonAmountMinor: addonMinor,
+      totalAmountMinor,
+      rpPlanFetched: !!basePlanAmountMinor,
+      pricingComputedAt: new Date(),
+    };
+
     await localSub.save();
 
     return res.status(201).json({
@@ -318,7 +349,8 @@ export const createUserSubscription = async (req, res) => {
       data: {
         subscriptionRecordId: localSub._id,
         razorpaySubscriptionId: rpSub.id,
-        amountMinor: realAmountMinor,
+        amountMinor: addonMinor,
+        totalAmountMinor,
         currency,
         key: process.env.RAZORPAY_KEY_ID,
       },
