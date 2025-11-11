@@ -16,7 +16,7 @@ export const checkFieldSubscription = async (req, res) => {
       userId,
       active: true,
       status: "active",
-    }).populate("planId", "name slug");
+    }).populate("planId", "name slug features");
 
     if (!activeSub) {
       return res.json({
@@ -49,6 +49,7 @@ export const checkFieldSubscription = async (req, res) => {
         endDate: activeSub.endDate,
         daysLeft,
         isTrial: activeSub.notes?.isTrial || false,
+        features: activeSub.planId?.features || {},
       },
     });
   } catch (e) {

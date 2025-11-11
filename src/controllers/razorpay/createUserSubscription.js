@@ -329,8 +329,8 @@ export const createUserSubscription = async (req, res) => {
       localSub.endDate = new Date(rpSub.current_end * 1000);
 
     // Set both addon and total amounts in DB
-    localSub.amountMinor = addonMinor; // addon (backwards compat)
-    localSub.totalAmountMinor = totalAmountMinor; // base + addon (new)
+    localSub.amountMinor = addonMinor;
+    localSub.totalAmountMinor = totalAmountMinor;
     localSub.notes = localSub.notes || {};
     localSub.notes.pricingSnapshot = {
       ...(localSub.notes.pricingSnapshot || {}),
