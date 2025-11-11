@@ -1,10 +1,7 @@
 import User from "../../models/usersModel.js";
 import { sendBasicEmail } from "../../config/sesClient.js";
 import { genOtp, hash } from "../../utils/authUtils.js";
-import {
-  htmlAdminOtp,
-  htmlSubscriptionSuccess,
-} from "../../utils/emailTemplate.js";
+import { htmlAdminOtp } from "../../utils/emailTemplate.js";
 
 export const requestAdminOtp = async (req, res) => {
   try {
@@ -49,7 +46,7 @@ export const requestAdminOtp = async (req, res) => {
     await sendBasicEmail({
       to: email,
       subject: "CropGen Admin OTP - Secure Login",
-      html: htmlSubscriptionSuccess(code, true),
+      html: htmlAdminOtp(code, true),
       text: `ADMIN OTP: ${code}\nThis is a privileged login. Expires in 10 minutes.`,
     });
 

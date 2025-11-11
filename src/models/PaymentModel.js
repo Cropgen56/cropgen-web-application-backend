@@ -1,68 +1,92 @@
 import mongoose from "mongoose";
-
 const { Schema } = mongoose;
 
 const PaymentSchema = new Schema(
   {
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      index: true,
-      required: true,
-    },
+    // Canonical relation: every payment belongs to a subscription (required)
     subscriptionId: {
       type: Schema.Types.ObjectId,
       ref: "UserSubscription",
       index: true,
       required: true,
     },
-    fieldId: { type: Schema.Types.ObjectId, ref: "FarmField", index: true },
+
+    // Optional denormalized fields to speed queries (populate when saving)
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      index: true,
+      required: false,
+      default: null,
+    },
+    fieldId: {
+      type: Schema.Types.ObjectId,
+      ref: "FarmField",
+      index: true,
+      required: false,
+      default: null,
+    },
 
     provider: { type: String, default: "razorpay", enum: ["razorpay"] },
 
+    // Provider identifiers
     providerPaymentId: {
       type: String,
       index: true,
       unique: true,
       sparse: true,
+      default: null,
     },
-    providerOrderId: { type: String, index: true },
-    providerInvoiceId: { type: String, index: true },
+    providerOrderId: { type: String, index: true, default: null },
+    providerInvoiceId: { type: String, index: true, default: null },
 
+    // amount & currency (required)
     amountMinor: { type: Number, required: true },
     currency: { type: String, required: true, uppercase: true },
 
-    // NEW: Payment Method Details
+    // Payment method info (optional)
     method: {
       type: String,
-      enum: ["card", "upi", "netbanking", "wallet"],
+      enum: ["card", "upi", "netbanking", "wallet", "other"],
       default: null,
     },
     cardLast4: { type: String, default: null }, // e.g., "8684"
     upiId: { type: String, default: null }, // e.g., "user@ybl"
     bank: { type: String, default: null }, // for netbanking
 
-    // NEW: Invoice & Status
-    invoiceNumber: { type: String, index: true }, // e.g., CG/2025/INV-12345
+    // Invoice metadata
+    invoiceNumber: { type: String, index: true, default: null },
     invoiceDate: { type: Date, default: Date.now },
 
+    // Payment lifecycle status: keep canonical states and default to "created"
     status: {
       type: String,
       enum: ["created", "authorized", "captured", "failed", "refunded"],
-      default: "captured",
+      default: "created",
+      index: true,
     },
 
-    // Billing Period (for recurring)
-    billingStartDate: { type: Date },
-    billingEndDate: { type: Date },
+    // billing period covered by this payment (optional for recurring)
+    billingStartDate: { type: Date, default: null },
+    billingEndDate: { type: Date, default: null },
 
-    raw: { type: Schema.Types.Mixed }, // Full Razorpay payload
+    // Full provider payload for audit (optional but recommended)
+    raw: { type: Schema.Types.Mixed },
     note: { type: String, default: null },
   },
   { timestamps: true }
 );
 
-// Prevent duplicate model
+// Indexes: providerPaymentId unique (sparse) prevents duplicates when present
+PaymentSchema.index({ providerPaymentId: 1 }, { unique: true, sparse: true });
+
+// If you generate invoice numbers, ensure uniqueness (sparse)
+PaymentSchema.index({ invoiceNumber: 1 }, { unique: true, sparse: true });
+
+// Common lookups
+PaymentSchema.index({ subscriptionId: 1 });
+PaymentSchema.index({ userId: 1 });
+
 const Payment =
   mongoose.models.Payment || mongoose.model("Payment", PaymentSchema);
 

@@ -245,7 +245,6 @@ export const htmlSubscriptionSuccess = (
   amount,
   currency,
   startDate,
-  endDate,
   nextBillingDate,
   paymentMethod = "Card",
   invoiceNumber = "CG/2025/INV-XXXXX"
@@ -261,7 +260,9 @@ export const htmlSubscriptionSuccess = (
   const symbol = currency === "INR" ? "₹" : "$";
   const formattedAmount = `${symbol}${parseFloat(amount).toFixed(2)}`;
   const issuedDate = formatDate(new Date());
-  const billingPeriod = `${formatDate(startDate)} – ${formatDate(endDate)}`;
+  const billingPeriod = `${formatDate(startDate)} – ${formatDate(
+    nextBillingDate
+  )}`;
 
   const finalInvoiceNumber = invoiceNumber.startsWith("CG/")
     ? invoiceNumber

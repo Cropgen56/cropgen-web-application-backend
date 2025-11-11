@@ -4,26 +4,18 @@ import { mapStatus } from "./utils/mapStatus.js";
 import UserSubscription from "../../models/userSubscriptionModel.js";
 import * as turf from "@turf/turf";
 
+import User from "../../models/usersModel.js";
+import { sendBasicEmail } from "../../config/sesClient.js";
+import { htmlSubscriptionSuccess } from "../../utils/emailTemplate.js";
+
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
 // constants
-const ACRES_TO_HECTARES = 0.40468564224; // 1 acre = ~0.40468564224 hectare
-const currencyDecimals = { INR: 2, USD: 2 }; // extend if you support more currencies
-
-// Minimums in minor units (e.g., paise, cents)
-const MIN_AMOUNT_MINOR = {
-  INR: 100, // ₹1.00
-  USD: 100, // $1.00
-};
-
-// Base plan env mapping (ensure these are set in prod)
-const BASE_PLANS = {
-  INR: process.env.RAZORPAY_BASE_PLAN_INR,
-  USD: process.env.RAZORPAY_BASE_PLAN_USD,
-};
+const ACRES_TO_HECTARES = 0.40468564224;
+const MIN_AMOUNT_MINOR = { INR: 100, USD: 100 };
 
 function convertArea(value, fromUnit, toUnit) {
   if (!value) return 0;
@@ -37,10 +29,18 @@ function convertArea(value, fromUnit, toUnit) {
 
 export const createUserSubscription = async (req, res) => {
   let localSub = null;
+  let createdPlan = null;
   try {
     const userId = req.user.id;
-    const { planId, fieldId, hectares, polygon, billingCycle, currency } =
-      req.body;
+    const {
+      planId,
+      fieldId,
+      hectares,
+      polygon,
+      billingCycle,
+      currency,
+      clientRequestId,
+    } = req.body;
 
     // Basic validation
     if (
@@ -57,12 +57,12 @@ export const createUserSubscription = async (req, res) => {
       });
     }
 
-    // Compute area in hectares. Prefer server-side polygon computation for trust.
+    // Compute area (server-side authoritative)
     let hectaresFloat;
     if (polygon) {
       try {
         const areaSqMeters = turf.area(polygon); // m^2
-        hectaresFloat = areaSqMeters / 10000; // to hectares
+        hectaresFloat = areaSqMeters / 10000; // hectares
       } catch (err) {
         return res
           .status(400)
@@ -79,6 +79,7 @@ export const createUserSubscription = async (req, res) => {
       });
     }
 
+    // Fetch template plan
     const plan = await SubscriptionPlan.findById(planId).lean();
     if (!plan || !plan.active) {
       return res
@@ -86,7 +87,7 @@ export const createUserSubscription = async (req, res) => {
         .json({ success: false, message: "Plan not found or inactive" });
     }
 
-    // TRIAL handling
+    // Trial handling
     if (plan.isTrial) {
       const sub = await UserSubscription.create({
         userId,
@@ -122,8 +123,8 @@ export const createUserSubscription = async (req, res) => {
       });
     }
 
-    // Pricing lookup (currency + billingCycle). We'll allow pricing.unit to be hectare or acre, converting to per-hectare.
-    let pricing = plan.pricing.find(
+    // Pricing lookup (currency + billingCycle)
+    const pricing = plan.pricing.find(
       (p) => p.currency === currency && p.billingCycle === billingCycle
     );
     if (!pricing) {
@@ -133,47 +134,33 @@ export const createUserSubscription = async (req, res) => {
       });
     }
 
+    // Convert pricing.unit -> price per hectare (minor units)
     const pricingUnit = pricing.unit || "hectare";
-    // Convert pricing (price per pricingUnit) -> price per hectare (in minor units)
     let pricePerHectareMinor;
     if (pricingUnit === "hectare") {
       pricePerHectareMinor = pricing.amountMinor;
     } else if (pricingUnit === "acre") {
-      const acresPerHectare = 1 / ACRES_TO_HECTARES; // ~2.47105
+      const acresPerHectare = 1 / ACRES_TO_HECTARES;
       pricePerHectareMinor = Math.round(pricing.amountMinor * acresPerHectare);
     } else {
-      pricePerHectareMinor = pricing.amountMinor; // fallback
+      pricePerHectareMinor = pricing.amountMinor;
     }
 
-    // Compute total addon in minor units (addon = area charge)
+    // Compute total amount (minor units) for this subscription (price * hectares)
     const rawTotalMinor = pricePerHectareMinor * hectaresFloat;
-    const addonAmountMinor = Math.round(rawTotalMinor);
+    const originalAmountMinor = Math.round(rawTotalMinor);
 
-    // Debug log to help investigate production vs local differences.
-    console.log("createUserSubscription debug (pre-check):", {
-      env: process.env.NODE_ENV || "unknown",
-      planId,
-      fieldId,
-      currency,
-      billingCycle,
-      pricingUnit,
-      pricingAmountMinor: pricing.amountMinor,
-      pricePerHectareMinor,
-      hectares: hectaresFloat,
-      rawTotalMinor,
-      addonAmountMinor,
-      basePlanIdEnv: BASE_PLANS[currency] || null,
-    });
-
-    // Enforce minimum allowed by Razorpay for the currency on the addon if you want (optional)
-    // Note: Razorpay rejects invoice if total (base + addon) < minimum. We'll check addon now and ensure later we compute total.
+    // Apply gateway minimum (auto-round-up to minimum if below)
     const minForCurrency = MIN_AMOUNT_MINOR[currency] ?? 100;
-    if (addonAmountMinor < 0) {
-      return res.status(400).json({
-        success: false,
-        message: `Computed addon amount invalid.`,
-        debug: { addonAmountMinor },
-      });
+    let finalAmountMinor = originalAmountMinor;
+    let appliedMinimum = false;
+
+    if (originalAmountMinor < minForCurrency) {
+      appliedMinimum = true;
+      finalAmountMinor = minForCurrency;
+      console.warn(
+        `Computed amount ${originalAmountMinor} < min ${minForCurrency} for ${currency}. Applying minimum (${finalAmountMinor}).`
+      );
     }
 
     // Prevent duplicate active subscription for same field and user
@@ -199,25 +186,21 @@ export const createUserSubscription = async (req, res) => {
       });
     }
 
-    // Prevent concurrent pending subscription with razorpay id
-    const pendingSub = await UserSubscription.findOne({
-      fieldId,
-      userId,
-      status: "pending",
-      razorpaySubscriptionId: { $ne: null },
-    });
-    if (pendingSub) {
-      return res.status(400).json({
-        success: false,
-        message: "A subscription is already being processed.",
-        pendingSubscription: {
-          subscriptionRecordId: pendingSub._id,
-          razorpaySubscriptionId: pendingSub.razorpaySubscriptionId,
-        },
+    // Idempotency: optional client-provided key
+    if (clientRequestId) {
+      const dup = await UserSubscription.findOne({
+        "notes.clientRequestId": clientRequestId,
       });
+      if (dup) {
+        return res.status(200).json({
+          success: true,
+          message: "Subscription already processed for this request id",
+          data: { subscriptionRecordId: dup._id, status: dup.status },
+        });
+      }
     }
 
-    // Create local "pending" subscription record (snapshot pricing)
+    // Create local pending subscription record (store pricing snapshot, include original + final amounts)
     localSub = await UserSubscription.create({
       userId,
       fieldId,
@@ -225,11 +208,12 @@ export const createUserSubscription = async (req, res) => {
       hectares: Number(hectaresFloat.toFixed(6)),
       currency,
       billingCycle,
-      amountMinor: addonAmountMinor, // addon only stored here for backward compatibility
-      totalAmountMinor: 0, // will update after fetching plan amount
+      amountMinor: finalAmountMinor,
+      totalAmountMinor: finalAmountMinor,
       status: "pending",
       active: false,
       notes: {
+        clientRequestId: clientRequestId || null,
         pricingSnapshot: {
           planId: plan._id,
           planName: plan.name,
@@ -239,87 +223,86 @@ export const createUserSubscription = async (req, res) => {
           pricePerUnitMinor: pricing.amountMinor,
           pricePerHectareMinor,
           hectares: Number(hectaresFloat.toFixed(6)),
-          addonAmountMinor,
+          originalAmountMinor,
+          finalAmountMinor,
+          appliedMinimum,
           computedAt: new Date(),
         },
         polygonProvided: !!polygon,
       },
     });
 
-    // Ensure basePlanId for the chosen currency exists in env
-    const basePlanId = BASE_PLANS[currency];
-    if (!basePlanId) {
-      // rollback localSub
+    // Create a new Razorpay Plan for this exact final amount
+    const planPayload = {
+      period: billingCycle === "yearly" ? "year" : "monthly",
+      interval: 1,
+      item: {
+        name: `${plan.name} - ${hectaresFloat.toFixed(4)} ha - user:${userId}`,
+        amount: finalAmountMinor,
+        currency,
+        description: `${plan.name} for ${hectaresFloat.toFixed(
+          4
+        )} ha (${billingCycle})`,
+      },
+      notes: {
+        userId: String(userId),
+        fieldId: String(fieldId),
+        userSubscriptionId: String(localSub._id),
+        clientRequestId: clientRequestId || null,
+        appliedMinimum,
+        originalAmountMinor,
+      },
+    };
+
+    try {
+      createdPlan = await razorpay.plans.create(planPayload);
+    } catch (err) {
+      console.error("Razorpay create plan error:", err);
+      // rollback local record
       await UserSubscription.deleteOne({ _id: localSub._id }).catch(() => {});
       return res.status(500).json({
         success: false,
-        message: `Server misconfiguration: base plan ID for currency ${currency} is not set in environment variables.`,
-        hint: `Set RAZORPAY_BASE_PLAN_${currency} to the correct plan id for this environment.`,
+        message: "Failed to create plan in Razorpay",
+        razorpayError: err?.error?.description || err.message || err,
       });
     }
 
-    // Create Razorpay subscription (base plan + addon)
+    // Create the subscription based on the created plan
     let rpSub;
     try {
-      rpSub = await razorpay.subscriptions.create({
-        plan_id: basePlanId,
-        total_count: 999,
+      const subPayload = {
+        plan_id: createdPlan.id,
         quantity: 1,
+        total_count: 999,
         customer_notify: 0,
-        addons: [
-          {
-            item: {
-              name: `${plan.name} - ${hectaresFloat.toFixed(4)} ha`,
-              amount: addonAmountMinor,
-              currency,
-              description: `${billingCycle} recurring`,
-            },
-          },
-        ],
         notes: {
           userId: String(userId),
           fieldId: String(fieldId),
           userSubscriptionId: String(localSub._id),
-          hectares: hectaresFloat.toFixed(4),
-          addonAmountMinor: String(addonAmountMinor),
-          billingCycle,
         },
-      });
+      };
+
+      rpSub = await razorpay.subscriptions.create(subPayload);
     } catch (err) {
       console.error(
         "Razorpay create subscription error:",
         JSON.stringify(err, null, 2)
       );
-      // rollback local sub
-      await UserSubscription.deleteOne({ _id: localSub._id }).catch(() => {});
+      // mark local sub failed but keep plan for audit
+      await UserSubscription.findByIdAndUpdate(localSub._id, {
+        status: "failed",
+        "notes.planId": createdPlan.id,
+        "notes.gatewayError": String(err?.message || err),
+      }).catch(() => {});
       return res.status(500).json({
         success: false,
         message: "Failed to create subscription with Razorpay",
-        razorpayError: err.error?.description || err.message || err,
+        razorpayError: err?.error?.description || err.message || err,
       });
     }
 
-    // --- NEW: fetch base plan amount from Razorpay to compute total charged amount ---
-    let basePlanAmountMinor = 0;
-    try {
-      const rpPlan = await razorpay.plans.fetch(basePlanId);
-      // try common fields where amount may be present
-      basePlanAmountMinor =
-        rpPlan?.item?.amount ?? rpPlan?.amount ?? rpPlan?.amount_minor ?? 0;
-      basePlanAmountMinor = Number(basePlanAmountMinor) || 0;
-    } catch (planErr) {
-      console.warn(
-        "Failed to fetch Razorpay plan details:",
-        planErr?.message || planErr
-      );
-      // fallback to 0 (we still save addon), but log warning. Ideally persist base plan amounts in DB/ENV.
-      basePlanAmountMinor = 0;
-    }
-
-    const addonMinor = Number(addonAmountMinor) || 0;
-    const totalAmountMinor = Number(basePlanAmountMinor) + addonMinor;
-
-    // Update localSub with razorpay metadata and computed totals
+    // Update localSub with razorpay metadata and activate
+    localSub.razorpayPlanId = createdPlan.id;
     localSub.razorpaySubscriptionId = rpSub.id;
     localSub.razorpayCustomerId = rpSub.customer_id || null;
     localSub.status = mapStatus(rpSub.status) || "pending";
@@ -328,29 +311,71 @@ export const createUserSubscription = async (req, res) => {
     if (rpSub.current_end)
       localSub.endDate = new Date(rpSub.current_end * 1000);
 
-    // Set both addon and total amounts in DB
-    localSub.amountMinor = addonMinor;
-    localSub.totalAmountMinor = totalAmountMinor;
+    localSub.amountMinor = finalAmountMinor;
+    localSub.totalAmountMinor = finalAmountMinor;
+    localSub.active = true;
     localSub.notes = localSub.notes || {};
     localSub.notes.pricingSnapshot = {
       ...(localSub.notes.pricingSnapshot || {}),
-      razorpayPlanId: basePlanId,
-      basePlanAmountMinor,
-      addonAmountMinor: addonMinor,
-      totalAmountMinor,
-      rpPlanFetched: !!basePlanAmountMinor,
+      razorpayPlanId: createdPlan.id,
+      razorpaySubscriptionId: rpSub.id,
       pricingComputedAt: new Date(),
     };
 
     await localSub.save();
 
+    // --- send custom email to subscriber (instead of Razorpay email) ---
+    (async () => {
+      try {
+        const user = await User.findById(userId).lean();
+        if (user?.email) {
+          const planName = plan.name || "Subscription";
+          const amountDisplay = (finalAmountMinor / 100).toFixed(2);
+          const billingStart = localSub.startDate || new Date();
+          const billingEnd = localSub.nextBillingAt || localSub.endDate || null;
+          const nextBilling = localSub.nextBillingAt || null;
+
+          await sendBasicEmail({
+            to: user.email,
+            subject: `Your ${planName} subscription is active`,
+            html: htmlSubscriptionSuccess(
+              user.name || "Farmer",
+              planName,
+              localSub.hectares,
+              amountDisplay,
+              localSub.currency,
+              billingStart,
+              billingEnd,
+              nextBilling,
+              "Card/UPI/Online",
+              `CG/${new Date().getFullYear()}/INV-${Math.floor(
+                10000 + Math.random() * 90000
+              )}`
+            ),
+            text: `Hi ${
+              user.name || "Farmer"
+            },\n\nYour ${planName} subscription for ${
+              localSub.hectares
+            } ha is now active.\nAmount: ${(finalAmountMinor / 100).toFixed(
+              2
+            )} ${localSub.currency}\n\nThanks,\nCropGen Team`,
+          });
+        }
+      } catch (emailErr) {
+        console.error("Failed to send custom subscription email:", emailErr);
+        // do not fail the request due to email issues
+      }
+    })();
+
     return res.status(201).json({
       success: true,
       data: {
         subscriptionRecordId: localSub._id,
+        razorpayPlanId: createdPlan.id,
         razorpaySubscriptionId: rpSub.id,
-        amountMinor: addonMinor,
-        totalAmountMinor,
+        amountMinor: finalAmountMinor,
+        originalAmountMinor,
+        appliedMinimum,
         currency,
         key: process.env.RAZORPAY_KEY_ID,
       },
@@ -360,6 +385,10 @@ export const createUserSubscription = async (req, res) => {
       await UserSubscription.deleteOne({ _id: localSub._id }).catch(() => {});
     }
     console.error("createUserSubscription server error:", e);
-    return res.status(500).json({ success: false, message: "Server error" });
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: e?.message || e,
+    });
   }
 };
