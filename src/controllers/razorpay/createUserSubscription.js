@@ -234,7 +234,7 @@ export const createUserSubscription = async (req, res) => {
 
     // Create a new Razorpay Plan for this exact final amount
     const planPayload = {
-      period: billingCycle === "yearly" ? "year" : "monthly",
+      period: billingCycle === "yearly" ? "yearly" : "monthly",
       interval: 1,
       item: {
         name: `${plan.name} - ${hectaresFloat.toFixed(4)} ha - user:${userId}`,
@@ -273,7 +273,7 @@ export const createUserSubscription = async (req, res) => {
       const subPayload = {
         plan_id: createdPlan.id,
         quantity: 1,
-        total_count: 999,
+        total_count: 100,
         customer_notify: 0,
         notes: {
           userId: String(userId),
