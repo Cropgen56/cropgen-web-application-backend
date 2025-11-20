@@ -84,7 +84,7 @@ export const htmlOtp = (otp) => `<!DOCTYPE html>
 
                     <p style="font-size:14px; color:#0b1220; margin:0;">
                       If you didn’t make this request or need assistance, visit the
-                      <a href="https://app.cropgenapp.com/help" style="color:#2563eb; text-decoration:underline;">Help Centre</a>.
+                      <a href="https://www.cropgenapp.com/contact" style="color:#2563eb; text-decoration:underline;">Help Centre</a>.
                     </p>
                   </td>
 
@@ -104,8 +104,8 @@ export const htmlOtp = (otp) => `<!DOCTYPE html>
               <div style="max-width:540px; margin:0 auto;">
                 <p style="margin:0 0 8px 0;">
                   <a href="https://app.cropgenapp.com/login" style="color:#d8f0ff; text-decoration:underline; margin-right:12px;">Dashboard</a>•
-                  <a href="https://app.cropgenapp.com/billing" style="color:#d8f0ff; text-decoration:underline; margin:0 12px;">Billing</a>•
-                  <a href="https://app.cropgenapp.com/help" style="color:#d8f0ff; text-decoration:underline; margin-left:12px;">Help</a>
+                  <a href="https://www.cropgenapp.com/pricing" style="color:#d8f0ff; text-decoration:underline; margin:0 12px;">Billing</a>•
+                  <a href="https://www.cropgenapp.com/contact" style="color:#d8f0ff; text-decoration:underline; margin-left:12px;">Help</a>
                 </p>
                 <p style="margin:10px 0 6px 0; line-height:20px;">
                   You received this email because you just signed up for a new account. If it looks weird,
@@ -374,7 +374,7 @@ export const htmlSubscriptionSuccess = (
           <!-- Tip -->
           <tr>
             <td style="padding:0 40px 24px; text-align:center; font-size:12px; color:#6b7280;">
-              <strong>Tip:</strong> Add <strong>no-reply@cropgen.in</strong> to your contacts to always see images.
+              <strong>Tip:</strong> Add <strong>support@cropgenapp.com</strong> to your contacts to always see images.
             </td>
           </tr>
 
@@ -475,7 +475,7 @@ export const htmlAdminOtp = (code, userName = "Farmer") => {
                   <p style="margin:0;">Stay secure,</p>
                   <p style="margin:0;"><strong>Team CropGen 🌾</strong></p>
                   <p style="margin:0;">
-                    <a href="mailto:support@cropgen.in" style="color:#345d13;text-decoration:none;">support@cropgen.in</a>
+                    <a href="mailto:support@cropgenapp.com" style="color:#345d13;text-decoration:none;">support@cropgenapp.com</a>
                   </p>
                 </div>
 
