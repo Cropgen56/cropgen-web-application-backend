@@ -383,7 +383,7 @@ export const htmlSubscriptionSuccess = (
             <td style="background:#246B27; color:#ffffff; padding:20px; text-align:center; font-size:13px;">
               <p style="margin:0 0 8px;">
                 You can view and manage your invoices anytime from your CropGen Dashboard.<br>
-                For queries, contact <a href="mailto:support@cropgen.in" style="color:#d8f0ff; text-decoration:underline;">support@cropgen.in</a>
+                For queries, contact <a href="mailto:support@cropgenapp.com" style="color:#d8f0ff; text-decoration:underline;">support@cropgenapp.com</a>
               </p>
               <p style="margin:12px 0 0; font-size:12px;">
                 This email was sent to you by <strong>CropGen</strong> – AI-Powered Crop Monitoring & Precision Farming
@@ -492,7 +492,7 @@ export const htmlAdminOtp = (code, userName = "Farmer") => {
                   </p>
                   <p style="margin-top:10px;font-size:14px;font-style:italic;text-align:center;">
                     <a href="https://app.cropgenapp.com/login" style="margin:0 10px;text-decoration:none;color:#000;font-weight:400;">Visit Dashboard</a> |
-                    <a href="https://app.cropgenapp.com/help" style="margin:0 10px;text-decoration:none;color:#000;font-weight:400;">Contact Us</a>
+                    <a href="https://cropgenapp.com/contact" style="margin:0 10px;text-decoration:none;color:#000;font-weight:400;">Contact Us</a>
                   </p>
                 </footer>
 
