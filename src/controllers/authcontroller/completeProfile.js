@@ -36,7 +36,6 @@ export const completeProfile = async (req, res) => {
         .status(404)
         .json({ success: false, message: "User not found." });
 
-    // prevent re-onboarding an already-complete account
     if (user.organization && user.terms === true) {
       return res
         .status(400)
@@ -88,11 +87,8 @@ export const completeProfile = async (req, res) => {
     // Set HttpOnly refresh cookie
     setRefreshCookie(res, refreshToken);
 
-    console.log("test send mail");
-
     // Send welcome email (non-critical)
     try {
-      console.log("Sending welcome email...");
       await sendBasicEmail({
         to: user.email,
         subject: "Welcome to CropGen",

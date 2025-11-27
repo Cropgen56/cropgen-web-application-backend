@@ -1,13 +1,11 @@
 import Crop from "../models/cropModel.js";
-import cloudinary from "../config/cloudinaryConfig.js";
-import multer from "multer";
-import { getS3Url, deleteFileFromS3 } from "../utils/s3.js";
+import { deleteFileFromS3 } from "../utils/s3.js";
 import { cropValidationSchema } from "../validation/cropValidationSchema.js";
 
 // create the crop information
 export const createCrop = async (req, res) => {
   try {
-    // 🔹 Helper to parse JSON strings safely
+    //  Helper to parse JSON strings safely
     const parseIfString = (data, fieldName) => {
       if (typeof data !== "string") return data;
       try {
@@ -17,7 +15,7 @@ export const createCrop = async (req, res) => {
       }
     };
 
-    // 🔹 Parse nested fields (if sent as JSON string)
+    //  Parse nested fields (if sent as JSON string)
     req.body.climate = parseIfString(req.body.climate, "climate");
     req.body.variety = parseIfString(req.body.variety, "variety");
     req.body.nursery = parseIfString(req.body.nursery, "nursery");
@@ -33,7 +31,7 @@ export const createCrop = async (req, res) => {
       "diseaseProtection"
     );
 
-    // 🔹 Validate with Joi
+    // Validate with Joi
     const { error, value } = cropValidationSchema.validate(req.body, {
       abortEarly: false,
     });
@@ -44,7 +42,7 @@ export const createCrop = async (req, res) => {
       });
     }
 
-    // 🔹 Ensure required images
+    // Ensure required images
     if (
       !req.files?.cropImage?.length ||
       !req.files?.pestImages?.length ||
@@ -57,7 +55,7 @@ export const createCrop = async (req, res) => {
       });
     }
 
-    // 🔹 Map S3 image URLs
+    // Map S3 image URLs
     const cropImage = req.files.cropImage[0].url;
 
     const pestProtectionWithImages = value.pestProtection.map(
@@ -78,7 +76,7 @@ export const createCrop = async (req, res) => {
       })
     );
 
-    // 🔹 Prevent duplicate crop
+    // Prevent duplicate crop
     const existingCrop = await Crop.findOne({
       cropName: value.cropName.toLowerCase(),
     });
@@ -89,7 +87,7 @@ export const createCrop = async (req, res) => {
       });
     }
 
-    // 🔹 Save crop
+    // Save crop
     const crop = new Crop({
       ...value,
       cropName: value.cropName.toLowerCase(),
@@ -106,7 +104,7 @@ export const createCrop = async (req, res) => {
       message: "Crop created successfully",
     });
   } catch (error) {
-    // 🔹 Rollback uploaded images on error
+    //  Rollback uploaded images on error
     if (req.files) {
       const allFiles = [
         ...(req.files.cropImage || []),
@@ -538,7 +536,7 @@ export const deleteCropById = async (req, res) => {
     const baseUrl = `https://${bucketName}.s3.${region}.amazonaws.com/`;
 
     const imagesToDelete = [
-      crop.cropImage, // Single crop image URL
+      crop.cropImage,
       ...crop.pestProtection.flatMap((pest) => pest.image || []),
       ...crop.diseaseProtection.flatMap((disease) => disease.image || []),
     ].filter(Boolean);
