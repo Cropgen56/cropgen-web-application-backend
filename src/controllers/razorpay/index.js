@@ -4,3 +4,4 @@ export { razorpayWebhookHandler } from "./webhookHandler.js";
 export { getAllSubscriptions } from "./getAllSubscription.js";
 export { cancelSubscription } from "./cancelSubscription.js";
 export { getSubscriptionById } from "./getSubscriptionById.js";
+export { getUserFieldsWithSubscriptions } from "./getUserFieldsWithSubscriptions.js";
