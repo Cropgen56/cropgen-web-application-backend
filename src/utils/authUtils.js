@@ -9,6 +9,8 @@ const ACCESS_EXPIRES = "1h";
 const REFRESH_EXPIRES = "7d";
 const REFRESH_COOKIE_NAME = "refreshToken";
 
+const CROPYDEALS_ACCESS_EXPIRES = "15d";
+
 export const hash = (s) => bcrypt.hash(s, 10);
 export const compare = (s, h) => bcrypt.compare(s, h);
 
@@ -38,6 +40,12 @@ export function signAccessToken(payload) {
 export function signRefreshToken(payload, refreshId) {
   return jwt.sign({ ...payload, rid: refreshId }, REFRESH_SECRET, {
     expiresIn: REFRESH_EXPIRES,
+  });
+}
+
+export function signCropydealsAccessToken(payload) {
+  return jwt.sign(payload, ACCESS_SECRET, {
+    expiresIn: CROPYDEALS_ACCESS_EXPIRES,
   });
 }
 

@@ -1,10 +1,5 @@
 import mongoose from "mongoose";
-import {
-  signAccessToken,
-  signRefreshToken,
-  generateRefreshId,
-  setRefreshCookie,
-} from "../../utils/authUtils.js";
+import { signCropydealsAccessToken } from "../../utils/authUtils.js";
 
 const User = mongoose.model("User");
 const Organization = mongoose.model("Organization");
@@ -38,6 +33,7 @@ export const cropydealsRegisterLogin = async (req, res) => {
     const organization = await Organization.findOne({
       organizationCode: organizationCode.toUpperCase(),
     });
+
     if (!organization) {
       return res.status(400).json({ error: "Invalid organization code" });
     }
@@ -46,12 +42,9 @@ export const cropydealsRegisterLogin = async (req, res) => {
     let user = await User.findOne({ phone });
 
     if (user) {
-      const refreshId = generateRefreshId();
       user.lastLoginAt = new Date();
-      user.refreshTokenId = refreshId;
       await user.save();
 
-      // Generate tokens
       const payload = {
         id: user._id,
         email: user.email || null,
@@ -59,11 +52,7 @@ export const cropydealsRegisterLogin = async (req, res) => {
         organization: user.organization,
       };
 
-      const accessToken = signAccessToken(payload);
-      const refreshToken = signRefreshToken(payload, refreshId);
-
-      // Set refresh token in cookie
-      setRefreshCookie(res, refreshToken);
+      const accessToken = signCropydealsAccessToken(payload);
 
       return res.status(200).json({
         message: "Login successful",
@@ -79,64 +68,59 @@ export const cropydealsRegisterLogin = async (req, res) => {
           subscriptionStatus: user.subscriptionStatus,
         },
       });
-    } else {
-      // Register new user
-      const refreshId = generateRefreshId();
+    }
 
-      user = new User({
-        firstName,
-        lastName,
-        phone,
-        email,
-        organization: organization._id,
-        terms,
-        role: "farmer",
-        refreshTokenId: refreshId,
-        lastLoginAt: new Date(),
-      });
+    // Register new user
+    user = new User({
+      firstName,
+      lastName,
+      phone,
+      email,
+      organization: organization._id,
+      terms,
+      role: "farmer",
+      lastLoginAt: new Date(),
+    });
 
-      await user.save();
+    await user.save();
 
-      const payload = {
+    const payload = {
+      id: user._id,
+      email: user.email || null,
+      role: user.role,
+      organization: user.organization,
+    };
+
+    const accessToken = signCropydealsAccessToken(payload);
+
+    return res.status(201).json({
+      message: "Registration successful",
+      accessToken,
+      user: {
         id: user._id,
-        email: user.email || null,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phone: user.phone,
+        email: user.email,
         role: user.role,
         organization: user.organization,
-      };
-
-      const accessToken = signAccessToken(payload);
-      const refreshToken = signRefreshToken(payload, refreshId);
-
-      // Set refresh token in cookie
-      setRefreshCookie(res, refreshToken);
-
-      return res.status(201).json({
-        message: "Registration successful",
-        accessToken,
-        user: {
-          id: user._id,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          phone: user.phone,
-          email: user.email,
-          role: user.role,
-          organization: user.organization,
-          subscriptionStatus: user.subscriptionStatus,
-        },
-      });
-    }
+        subscriptionStatus: user.subscriptionStatus,
+      },
+    });
   } catch (error) {
     if (error.code === 11000) {
       return res
         .status(400)
         .json({ error: "Phone number or email already exists" });
     }
+
     if (error.name === "ValidationError") {
       const errors = Object.values(error.errors).map((err) => err.message);
       return res
         .status(400)
         .json({ error: `Validation failed: ${errors.join(", ")}` });
     }
+
     console.error("Error in cropydealsRegisterLogin:", error);
     return res.status(500).json({ error: "Internal server error" });
   }
