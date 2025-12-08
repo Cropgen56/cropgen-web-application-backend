@@ -11,7 +11,6 @@ export const sesClient = new SESClient({
 // ---------- helpers ----------
 
 function parseFromAddress(from) {
-  // Accepts:  "Name <email@x>"  OR  "email@x"
   if (!from) {
     return {
       fromName: process.env.SES_FROM_NAME || "",
@@ -47,10 +46,6 @@ function normalizeRecipients(to) {
   return { valid, invalid };
 }
 
-/**
- * Normalize SES errors → { code, message, retryable }
- * This keeps controllers simple & predictable.
- */
 function normalizeSesError(err, context = {}) {
   const msg = String(err?.message || err || "Unknown SES error");
 
@@ -106,15 +101,6 @@ function normalizeSesError(err, context = {}) {
   };
 }
 
-// ---------- main API ----------
-
-/**
- * Send a basic email via AWS SES (v3).
- * Accepts either { from } as "Name <email@x>" or { fromEmail, fromName }.
- *
- * @returns {Promise<{ MessageId: string, invalidRecipients?: string[] }>}
- * @throws {Error & { code: string, retryable?: boolean, invalidRecipients?: string[] }}
- */
 export const sendBasicEmail = async ({
   to,
   subject,

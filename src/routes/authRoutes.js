@@ -22,6 +22,7 @@ import {
   loginWithGoogleWeb,
   loginWithGoogleMobile,
   requestAdminOtp,
+  getAvatarPresignedUrl,
 } from "../controllers/authcontroller/index.js";
 
 import { requireAuth } from "../middleware/authMiddleware.js";
@@ -41,7 +42,8 @@ router.get(
   getAllUsers
 );
 
-// get the user by id with the help of the token
+router.post("/avatar-presign", isAuthenticated, getAvatarPresignedUrl);
+
 router.get("/user", isAuthenticated, getUser);
 router.get(
   "/user/:id",

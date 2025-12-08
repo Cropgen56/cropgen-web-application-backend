@@ -1,6 +1,4 @@
-// controllers/subscriptionAdminController.js
 import UserSubscription from "../../models/userSubscriptionModel.js";
-import Payment from "../../models/PaymentModel.js";
 
 export const getAllSubscriptions = async (req, res) => {
   try {

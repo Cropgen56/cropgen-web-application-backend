@@ -7,3 +7,4 @@ export { logoutHandler } from "./logoutHandler.js";
 export { loginWithGoogleWeb } from "./loginWithGoogleWeb.js";
 export { loginWithGoogleMobile } from "./loginWithGoogleMobile.js";
 export { requestAdminOtp } from "./requestAdminOtp.js";
+export { getAvatarPresignedUrl } from "./avatarController.js";

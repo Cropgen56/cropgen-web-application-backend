@@ -3,6 +3,7 @@ import {
   PutObjectCommand,
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import fs from "fs";
 
 const s3 = new S3Client({
@@ -69,4 +70,28 @@ export const deleteFileFromS3 = async (key) => {
     console.error(`Failed to delete S3 file ${key}:`, err);
     throw err;
   }
+};
+
+export const createAvatarPresignedUrl = async ({ userId, fileType }) => {
+  if (!userId) {
+    throw new Error("userId is required for avatar presigned URL");
+  }
+
+  if (!fileType || !fileType.startsWith("image/")) {
+    throw new Error("Valid image content type is required");
+  }
+
+  const key = `avatars/${userId}-${Date.now()}`;
+
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: key,
+    ContentType: fileType,
+  });
+
+  const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 300 });
+
+  const fileUrl = `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+
+  return { key, uploadUrl, fileUrl };
 };
