@@ -9,7 +9,6 @@ import {
   signupWithFirebase,
   isUserExist,
   loginWithPhone,
-  getUser,
 } from "../controllers/authController.js";
 
 import {
@@ -23,6 +22,7 @@ import {
   loginWithGoogleMobile,
   requestAdminOtp,
   getAvatarPresignedUrl,
+  getProfile,
 } from "../controllers/authcontroller/index.js";
 
 import { requireAuth } from "../middleware/authMiddleware.js";
@@ -44,7 +44,8 @@ router.get(
 
 router.post("/avatar-presign", isAuthenticated, getAvatarPresignedUrl);
 
-router.get("/user", isAuthenticated, getUser);
+router.get("/profile", isAuthenticated, getProfile);
+
 router.get(
   "/user/:id",
   isAuthenticated,

@@ -35,20 +35,85 @@ export const getPosts = async (req, res) => {
     const limit = parseInt(req.query.limit || "10", 10);
     const skip = (page - 1) * limit;
 
-    const [posts, total] = await Promise.all([
-      Post.find({})
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .populate({
-          path: "author",
-          // return everything except sensitive/internal fields
-          select:
-            "-otp -otpExpires -otpAttemptCount -lastOtpSentAt -refreshTokenId -firebaseUid -__v",
-        })
-        .lean(),
-      Post.countDocuments(),
+    const posts = await Post.aggregate([
+      // Sort newest first
+      { $sort: { createdAt: -1 } },
+
+      // Pagination
+      { $skip: skip },
+      { $limit: limit },
+
+      // Populate post author
+      {
+        $lookup: {
+          from: "users",
+          localField: "author",
+          foreignField: "_id",
+          as: "author",
+        },
+      },
+      { $unwind: "$author" },
+
+      // Remove sensitive fields from author
+      {
+        $project: {
+          "author.otp": 0,
+          "author.otpExpires": 0,
+          "author.otpAttemptCount": 0,
+          "author.lastOtpSentAt": 0,
+          "author.refreshTokenId": 0,
+          "author.firebaseUid": 0,
+          "author.__v": 0,
+        },
+      },
+
+      // Fetch comments for each post
+      {
+        $lookup: {
+          from: "comments",
+          localField: "_id",
+          foreignField: "post",
+          as: "comments",
+          pipeline: [
+            { $sort: { createdAt: -1 } },
+
+            // Populate comment author
+            {
+              $lookup: {
+                from: "users",
+                localField: "author",
+                foreignField: "_id",
+                as: "author",
+              },
+            },
+            { $unwind: "$author" },
+
+            // Remove sensitive user fields
+            {
+              $project: {
+                content: 1,
+                createdAt: 1,
+                "author._id": 1,
+                "author.firstName": 1,
+                "author.lastName": 1,
+                "author.avatar": 1,
+                "author.role": 1,
+              },
+            },
+          ],
+        },
+      },
+
+      // Add comment count
+      {
+        $addFields: {
+          commentCount: { $size: "$comments" },
+          likeCount: { $size: "$likes" },
+        },
+      },
     ]);
+
+    const total = await Post.countDocuments();
 
     return res.status(200).json({
       data: posts,
@@ -69,24 +134,91 @@ export const getPostById = async (req, res) => {
   try {
     const { postId } = req.params;
 
-    const post = await Post.findById(postId)
-      .populate("author", "name avatar")
-      .lean();
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
+      return res.status(400).json({ message: "Invalid post ID" });
+    }
 
-    if (!post) {
+    const posts = await Post.aggregate([
+      {
+        $match: { _id: new mongoose.Types.ObjectId(postId) },
+      },
+
+      // Populate post author
+      {
+        $lookup: {
+          from: "users",
+          localField: "author",
+          foreignField: "_id",
+          as: "author",
+        },
+      },
+      { $unwind: "$author" },
+
+      // Remove sensitive author fields
+      {
+        $project: {
+          "author.otp": 0,
+          "author.otpExpires": 0,
+          "author.otpAttemptCount": 0,
+          "author.lastOtpSentAt": 0,
+          "author.refreshTokenId": 0,
+          "author.firebaseUid": 0,
+          "author.__v": 0,
+        },
+      },
+
+      // Fetch comments for this post
+      {
+        $lookup: {
+          from: "comments",
+          localField: "_id",
+          foreignField: "post",
+          as: "comments",
+          pipeline: [
+            { $sort: { createdAt: 1 } },
+
+            // Populate comment author
+            {
+              $lookup: {
+                from: "users",
+                localField: "author",
+                foreignField: "_id",
+                as: "author",
+              },
+            },
+            { $unwind: "$author" },
+
+            // Clean author data
+            {
+              $project: {
+                content: 1,
+                createdAt: 1,
+                "author._id": 1,
+                "author.firstName": 1,
+                "author.lastName": 1,
+                "author.avatar": 1,
+                "author.role": 1,
+              },
+            },
+          ],
+        },
+      },
+
+      // Counts
+      {
+        $addFields: {
+          commentCount: { $size: "$comments" },
+          likeCount: { $size: "$likes" },
+        },
+      },
+    ]);
+
+    if (!posts.length) {
       return res.status(404).json({ message: "Post not found" });
     }
 
-    const comments = await Comment.find({ post: postId })
-      .sort({ createdAt: 1 })
-      .populate("author", "name avatar")
-      .lean();
-
     return res.status(200).json({
-      data: {
-        post,
-        comments,
-      },
+      data: posts[0],
     });
   } catch (error) {
     console.error("getPostById error:", error);
