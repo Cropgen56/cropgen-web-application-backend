@@ -1,6 +1,5 @@
 import admin from "firebase-admin";
 
-// Dynamically import the JSON file
 const serviceAccountPromise = import(
   "./cropgen-4551-firebase-adminsdk-fbsvc-d3594b16b6.json",
   {
@@ -8,7 +7,6 @@ const serviceAccountPromise = import(
   }
 );
 
-// Initialize Firebase Admin SDK
 serviceAccountPromise.then(({ default: serviceAccount }) => {
   if (!admin.apps.length) {
     admin.initializeApp({
@@ -18,5 +16,4 @@ serviceAccountPromise.then(({ default: serviceAccount }) => {
   }
 });
 
-// Export admin (optional, depending on your use case)
 export default admin;

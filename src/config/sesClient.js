@@ -106,7 +106,7 @@ export const sendBasicEmail = async ({
   subject,
   html,
   text,
-  from, // optional combined "Name <email@x>"
+  from,
   fromEmail = process.env.SES_FROM_EMAIL,
   fromName = process.env.SES_FROM_NAME || "CropGen",
   replyTo = process.env.SES_REPLY_TO || process.env.SES_FROM_EMAIL,
