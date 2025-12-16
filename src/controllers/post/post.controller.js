@@ -1,6 +1,7 @@
 import Post from "../../models/postsModel.js";
 import Comment from "../../models/commentModel.js";
 import mongoose from "mongoose";
+import { createPostImagePresignedUrl } from "../../utils/s3.js";
 
 export const createPost = async (req, res) => {
   try {
@@ -328,6 +329,40 @@ export const toggleLike = async (req, res) => {
     });
   } catch (error) {
     console.error("toggleLike error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const getPostImageUploadUrl = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const { fileType } = req.body;
+
+    if (!fileType || !fileType.startsWith("image/")) {
+      return res
+        .status(400)
+        .json({ message: "Valid image content type is required" });
+    }
+
+    const { uploadUrl, fileUrl } = await createPostImagePresignedUrl({
+      userId,
+      fileType,
+    });
+
+    return res.status(200).json({
+      message: "Post image upload URL generated",
+      data: {
+        uploadUrl,
+        fileUrl,
+      },
+    });
+  } catch (error) {
+    console.error("getPostImageUploadUrl error:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

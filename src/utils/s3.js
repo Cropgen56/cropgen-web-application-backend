@@ -95,3 +95,33 @@ export const createAvatarPresignedUrl = async ({ userId, fileType }) => {
 
   return { key, uploadUrl, fileUrl };
 };
+
+export const createPostImagePresignedUrl = async ({ userId, fileType }) => {
+  if (!userId) {
+    throw new Error("userId is required");
+  }
+
+  if (!fileType || !fileType.startsWith("image/")) {
+    throw new Error("Valid image content type is required");
+  }
+
+  const imageId = crypto.randomUUID();
+
+  const key = `temp/posts/${userId}/${imageId}`;
+
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: key,
+    ContentType: fileType,
+  });
+
+  const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 300 });
+
+  const fileUrl = `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+
+  return {
+    key,
+    uploadUrl,
+    fileUrl,
+  };
+};

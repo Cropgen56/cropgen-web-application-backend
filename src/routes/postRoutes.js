@@ -5,6 +5,7 @@ import {
   getPostById,
   deletePost,
   toggleLike,
+  getPostImageUploadUrl,
 } from "../controllers/post/post.controller.js";
 
 import {
@@ -25,5 +26,6 @@ router.post("/:postId/like", isAuthenticated, toggleLike);
 // post comments routes
 router.post("/:postId/comments", isAuthenticated, addComment);
 router.delete("/comments/:commentId", isAuthenticated, deleteComment);
+router.post("/post-presign", isAuthenticated, getPostImageUploadUrl);
 
 export default router;
