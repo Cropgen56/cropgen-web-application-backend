@@ -541,7 +541,9 @@ export const signupWithFirebase = async (req, res) => {
       organization: newUser.organization,
       firebaseUid: newUser.firebaseUid,
     };
-    const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: "15d" });
+    const accessToken = jwt.sign(payload, process.env.JWT_ACCESS_SECRET, {
+      expiresIn: "15d",
+    });
 
     return res.status(201).json({
       success: true,
@@ -620,7 +622,7 @@ export const loginWithPhone = async (req, res) => {
       organization: user.organization,
     };
 
-    const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
+    const accessToken = jwt.sign(payload, process.env.JWT_ACCESS_SECRET, {
       expiresIn: "15d",
     });
 
