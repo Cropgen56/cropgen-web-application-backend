@@ -26,6 +26,7 @@ import {
 } from "../controllers/authcontroller/index.js";
 
 import { requireAuth } from "../middleware/authMiddleware.js";
+import { updateUserActivity } from "../middleware/updateUserActivity.js";
 
 import {
   isAuthenticated,
@@ -44,8 +45,8 @@ router.get(
 
 router.post("/avatar-presign", isAuthenticated, getAvatarPresignedUrl);
 
-router.get("/profile", isAuthenticated, getProfile);
-
+router.get("/profile", isAuthenticated,updateUserActivity, getProfile);
+// 2026-01-06T11:24:12.869+00:00
 router.get(
   "/user/:id",
   isAuthenticated,

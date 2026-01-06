@@ -56,6 +56,10 @@ const userSchema = new Schema(
     otpAttemptCount: { type: Number, default: 0 },
     lastOtpSentAt: { type: Date, default: null },
     lastLoginAt: { type: Date, default: null },
+    lastActiveAt: {
+      type: Date,
+      index: true,
+    },
     refreshTokenId: { type: String, default: null },
     firebaseUid: {
       type: String,
@@ -70,3 +74,7 @@ const userSchema = new Schema(
 const User = mongoose.model("User", userSchema);
 
 export default User;
+
+userSchema.index({ createdAt: 1 });
+userSchema.index({ lastActiveAt: 1 });
+userSchema.index({ role: 1 });

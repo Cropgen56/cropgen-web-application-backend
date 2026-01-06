@@ -34,3 +34,9 @@ const farmFieldSchema = new mongoose.Schema(
 );
 
 export default mongoose.model("FarmField", farmFieldSchema);
+
+farmFieldSchema.index({ createdAt: 1 });
+farmFieldSchema.index({ user: 1 });
+farmFieldSchema.index({ cropName: 1 });
+farmFieldSchema.index({ typeOfFarming: 1 });
+farmFieldSchema.index({ typeOfIrrigation: 1 });
