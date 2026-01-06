@@ -98,7 +98,6 @@ app.use("/v1/api/common", commonRoutes);
 app.use("/v1/api/analytics", analyticRoutes);
 
 
-// Health check
 app.get("/health", (req, res) => {
   return res.status(200).json({
     status: true,
