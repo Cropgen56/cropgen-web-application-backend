@@ -49,7 +49,7 @@ temp/
 
 # PM2 Process Files
 pm2*.log
-pm2*.json
+
 
 # Miscellaneous
 *.bak
