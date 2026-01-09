@@ -65,6 +65,11 @@ const userSchema = new Schema(
       type: String,
       default: null,
     },
+    clientSource: {
+    type: String,
+    enum: ["web", "android", "ios","webview","unknown"],
+    default: "unknown"
+    }
   },
   {
     timestamps: true,

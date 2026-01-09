@@ -1,15 +1,15 @@
 import express from "express";
-import {
-  getAllUsers,
-  getUserById,
-  deleteUserById,
-  updateUserById,
-  deleteUserByEmail,
-  checkUser,
-  signupWithFirebase,
-  isUserExist,
-  loginWithPhone,
-} from "../controllers/authController.js";
+// import {
+//   getAllUsers,
+//   getUserById,
+//   deleteUserById,
+//   updateUserById,
+//   deleteUserByEmail,
+//   checkUser,
+//   signupWithFirebase,
+//   isUserExist,
+//   loginWithPhone,
+// } from "../controllers/authController.js";
 
 import {
   requestOtp,
@@ -23,6 +23,15 @@ import {
   requestAdminOtp,
   getAvatarPresignedUrl,
   getProfile,
+  getAllUsers,
+  getUserById,
+  deleteUserById,
+  updateUserById,
+  deleteUserByEmail,
+  checkUser,
+  signupWithFirebase,
+  isUserExist,
+  loginWithPhone,
 } from "../controllers/authcontroller/index.js";
 
 import { requireAuth } from "../middleware/authMiddleware.js";
@@ -39,17 +48,19 @@ const router = express.Router();
 router.get(
   "/users",
   isAuthenticated,
+  updateUserActivity,
   authorizeRoles("admin", "developer", "client"),
   getAllUsers
 );
 
-router.post("/avatar-presign", isAuthenticated, getAvatarPresignedUrl);
+router.post("/avatar-presign", isAuthenticated,updateUserActivity, getAvatarPresignedUrl);
 
 router.get("/profile", isAuthenticated,updateUserActivity, getProfile);
-// 2026-01-06T11:24:12.869+00:00
+
 router.get(
   "/user/:id",
   isAuthenticated,
+  updateUserActivity,
   authorizeRoles("admin", "developer", "client"),
   getUserById
 );
@@ -64,6 +75,7 @@ router.delete("/delete-user-by-email/:email", checkApiKey, deleteUserByEmail);
 router.patch(
   "/update-user/:id",
   isAuthenticated,
+  updateUserActivity,
   authorizeRoles("admin", "developer", "client", "farmer"),
   updateUserById
 );
@@ -81,9 +93,8 @@ router.post("/verify", verifyOtp);
 router.post("/complete-profile", requireAuth, completeProfile);
 router.post("/refresh", refreshTokenHandler);
 router.post("/logout", logoutHandler);
-
-// login with google routes web application
 router.post("/google", loginWithGoogleWeb);
+
 
 // request admin otp
 router.post("/admin-otp", requestAdminOtp);

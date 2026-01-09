@@ -1,81 +1,8 @@
 import jwt from "jsonwebtoken";
 import User from "../models/usersModel.js";
 import Organization from "../models/organizationModel.js";
-import { OAuth2Client } from "google-auth-library";
 import admin from "firebase-admin";
 
-const clientMobile = new OAuth2Client(process.env.MOBILE_GOOGLE_CLIENT_ID);
-
-// Google login controller
-export const googleLoginMobile = async (req, res) => {
-  try {
-    const { token } = req.body;
-
-    // Verify token with Google
-    const ticket = await clientMobile.verifyIdToken({
-      idToken: token,
-      audience: process.env.MOBILE_GOOGLE_CLIENT_ID,
-    });
-
-    const payloadData = ticket.getPayload();
-
-    const { email, name, picture, sub } = payloadData;
-
-    // Split full name into first and last name
-    const nameParts = name.split(" ");
-    const firstName = nameParts[0];
-    const lastName = nameParts.slice(1).join(" ") || "";
-
-    // Check if the user already exists in the database
-    let user = await User.findOne({ email });
-
-    // Convert code to uppercase or default to 'CROPGEN'
-    const orgCode = "CROPGEN";
-
-    // Find organization (case-insensitive, always uppercase)
-    const organization = await Organization.findOne({
-      organizationCode: orgCode,
-    });
-
-    if (!organization) {
-      return res.status(404).json({
-        success: false,
-        message: `Organization '${orgCode}' not found.`,
-      });
-    }
-
-    if (!user) {
-      // If the user does not exist, create a new one
-      user = new User({
-        firstName,
-        lastName,
-        email,
-        role: "farmer",
-        terms: true,
-        organization: organization._id,
-      });
-
-      await user.save();
-    }
-
-    // Generate JWT Token for authentication
-    const payload = {
-      id: user._id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      role: user.role,
-      organization: user.organization,
-    };
-    const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: "15d" });
-
-    res.json({ success: true, accessToken, user });
-  } catch (error) {
-    res
-      .status(400)
-      .json({ success: false, message: "Invalid Google Token", error });
-  }
-};
 
 // Fetch all users (paginated by default). Admins/developers can pass ?all=true to fetch every user.
 export const getAllUsers = async (req, res) => {
@@ -529,6 +456,7 @@ export const signupWithFirebase = async (req, res) => {
       terms,
       organization: organization._id,
       firebaseUid: uid,
+      clientSource: "android"
     });
 
     // Generate JWT Token for authentication
@@ -608,7 +536,8 @@ export const loginWithPhone = async (req, res) => {
         phone,
         role: "farmer",
         terms: true,
-        organization: organization._id,
+        organization: organization?._id,
+        clientSource: "android"
       });
     }
 

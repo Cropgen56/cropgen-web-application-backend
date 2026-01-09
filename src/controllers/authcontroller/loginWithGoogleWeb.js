@@ -57,6 +57,14 @@ export const loginWithGoogleWeb = async (req, res) => {
     let user = await User.findOne({ email }).populate("organization");
     const isExisting = !!user && !!user.organization && user.terms === true;
 
+   // Backfill clientSource for existing users if missing or invalid
+    if (
+     user &&
+   (!user.clientSource || user.clientSource === "unknown")
+) {
+  user.clientSource = "web";
+}
+
     // Prepare email details based on user status
     const emailDetails = isExisting
       ? {
@@ -82,7 +90,8 @@ export const loginWithGoogleWeb = async (req, res) => {
         email,
         role: "farmer",
         terms: true,
-        organization: organization._id,
+        organization: organization?._id,
+        clientSource: "web"
       });
     }
 

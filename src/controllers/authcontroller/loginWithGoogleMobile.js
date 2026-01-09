@@ -27,6 +27,12 @@ export const loginWithGoogleMobile = async (req, res) => {
     let user = await User.findOne({ email }).populate("organization");
     const isExisting = !!user && !!user.organization && user.terms === true;
 
+    // Backfill clientSource for legacy users
+if (user && (!user.clientSource || user.clientSource === "unknown")) {
+  user.clientSource = "android";
+  await user.save();
+}
+
     const orgCode = "CROPGEN";
 
     const organization = await Organization.findOne({
@@ -65,7 +71,8 @@ export const loginWithGoogleMobile = async (req, res) => {
         email,
         role: "farmer",
         terms: true,
-        organization: organization._id,
+        organization: organization?._id,
+        clientSource: "android"
       });
       await user.save();
     }
