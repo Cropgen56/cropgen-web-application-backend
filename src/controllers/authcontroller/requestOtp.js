@@ -13,9 +13,22 @@ export const requestOtp = async (req, res) => {
 
     let user = await User.findOne({ email });
 
-    // create placeholder if missing (no org yet)
-    if (!user)
-      user = await User.create({ email, terms: false, role: "farmer" });
+    
+// create placeholder if missing (no org yet)
+if (!user) {
+  user = await User.create({
+    email,
+    terms: false,
+    role: "farmer",
+    clientSource: "web",
+  });
+} else {
+  // Backfill clientSource for legacy users
+  if (!user.clientSource || user.clientSource === "unknown") {
+    user.clientSource = "web";
+    await user.save(); 
+  }
+}
 
     // throttle: 60s between sends
     const now = Date.now();

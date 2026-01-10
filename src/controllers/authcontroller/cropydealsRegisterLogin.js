@@ -42,6 +42,11 @@ export const cropydealsRegisterLogin = async (req, res) => {
     let user = await User.findOne({ phone });
 
     if (user) {
+        // Backfill clientSource for legacy users
+        if (!user.clientSource || user.clientSource === "unknown") {
+            user.clientSource = "webview";
+       }
+
       user.lastLoginAt = new Date();
       await user.save();
 
@@ -80,6 +85,7 @@ export const cropydealsRegisterLogin = async (req, res) => {
       terms,
       role: "farmer",
       lastLoginAt: new Date(),
+      clientSource: "webview"
     });
 
     await user.save();

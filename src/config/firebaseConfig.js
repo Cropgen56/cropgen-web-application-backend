@@ -1,7 +1,7 @@
 import admin from "firebase-admin";
 
 const serviceAccountPromise = import(
-  "./cropgen-4551-firebase-adminsdk-fbsvc-d3594b16b6.json",
+  "./firebase-services-admin.json",
   {
     with: { type: "json" },
   }
