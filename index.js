@@ -17,7 +17,7 @@ import postsRoutes from "./src/routes/postRoutes.js";
 import commonRoutes from "./src/routes/commonRoutes.js";
 import analyticRoutes from "./src/routes/analyticsRoutes.js"
 
-import emailRoutes from "./src/routes/emailRoutes.js";
+// import emailRoutes from "./src/routes/emailRoutes.js";
 import "./src/config/firebaseConfig.js";
 import subscriptionRoutes from "./src/routes/subscriptionPlansRoutes.js";
 import razorpayRoutes from "./src/routes/razorpayRoutes.js";
@@ -90,7 +90,7 @@ app.use("/v1/api/blog", blogRoutes);
 app.use("/v1/api/org", organizationRoutes);
 app.use("/v1/api/operation", operationRoutes);
 app.use("/v1/api/crop", cropRoutes);
-app.use("/v1/api/email", emailRoutes);
+// app.use("/v1/api/email", emailRoutes);
 app.use("/v1/api/subscription", subscriptionRoutes);
 app.use("/v1/api/user-subscriptions", razorpayRoutes);
 app.use("/v1/api/posts", postsRoutes);

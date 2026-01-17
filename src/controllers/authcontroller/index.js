@@ -18,3 +18,6 @@ export {isUserExist} from "./isUserExist.js"
 export {loginWithPhone} from "./loginWithPhone.js"
 export {signupWithFirebase} from "./signupWithFirebase.js"
 export {updateUserById} from "./updateUserById.js"
+
+// whatsapp routes 
+export {sendWhatsappOtp,verifyWhatsappOtp,sendCustomMessage} from "./whatsapp.controller.js"
