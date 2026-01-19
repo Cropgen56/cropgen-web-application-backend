@@ -188,7 +188,6 @@ export const getDashboardAnalytics = async (req, res) => {
         activeUsers,
         platformUsers,
         byRole: usersByRole,
-        newDetails: newUsersDetails,
       },
       fields: {
         total: totalFields,
