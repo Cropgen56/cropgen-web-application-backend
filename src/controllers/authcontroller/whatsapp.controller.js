@@ -56,24 +56,53 @@ export const verifyWhatsappOtp = async (req, res) => {
 
 
 export const sendCustomMessage = async (req, res) => {
-  const { phone, message } = req.body;
+  try {
+    const { phone, message } = req.body;
 
-  if (!phone || !message) {
-    return res.status(400).json({ error: "phone and message are required" });
-  }
+    if (!phone || !message) {
+      return res.status(400).json({ error: "phone and message are required" });
+    }
 
-  const result = await sendCustomWhatsAppMessage(phone, message);
+    const result = await sendCustomWhatsAppMessage(phone, message);
 
-  if (result.success) {
-    return res.json({
-      success: true,
-      message: "Custom message sent",
-      messageId: result.messageId,
+    if (result.success) {
+      // Log sent message
+      console.log("📤 WhatsApp message sent:", {
+        to: phone,
+        messageId: result.messageId,
+      });
+
+      // 🔴 HARD-CODED CALLBACK SIMULATION
+      const simulatedCallback = {
+        from: phone,
+        text: "Ok",
+        timestamp: new Date().toISOString(),
+        messageId: result.messageId,
+      };
+
+      console.log("📩 Simulated WhatsApp callback received:");
+      console.log(simulatedCallback);
+
+      if (simulatedCallback.text === "OK") {
+        console.log("✅ User confirmed with OK:", simulatedCallback.from);
+      }
+
+      return res.json({
+        success: true,
+        message: "Custom message sent",
+        messageId: result.messageId,
+      });
+    }
+
+    return res.status(result.status || 500).json({
+      success: false,
+      error: result.error,
+    });
+  } catch (err) {
+    console.error("❌ sendCustomMessage error:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error",
     });
   }
-
-  return res.status(result.status || 500).json({
-    success: false,
-    error: result.error,
-  });
-}
+};

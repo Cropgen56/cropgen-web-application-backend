@@ -103,6 +103,6 @@ router.get("/webhook/whatsapp", verifyWhatsappWebhook);
 router.post("/webhook/whatsapp", receiveWhatsappWebhook);
 
 
-router.post("/send-custom-message",sendCustomMessage)
+router.post("/send-weather-alert",sendCustomMessage)
 
 export default router;
