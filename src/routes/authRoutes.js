@@ -21,13 +21,8 @@ import {
   signupWithFirebase,
   isUserExist,
   loginWithPhone,
-  // whatsapp 
-  sendWhatsappOtp,
-  verifyWhatsappOtp,
-  sendCustomMessage
 } from "../controllers/authcontroller/index.js";
 
-import { verifyWhatsappWebhook,receiveWhatsappWebhook } from "../controllers/webhookcontroller/whatsappwebhook.controller.js";
 
 import { requireAuth } from "../middleware/authMiddleware.js";
 import { updateUserActivity } from "../middleware/updateUserActivity.js";
@@ -96,13 +91,5 @@ router.post("/admin-otp", requestAdminOtp);
 // cropydeals register login api
 router.post("/cropydeal-register-login", cropydealsRegisterLogin);
 
-// whatsapp routes
-router.post("/send-otp", sendWhatsappOtp);
-router.post("/verify-otp", verifyWhatsappOtp);
-router.get("/webhook/whatsapp", verifyWhatsappWebhook);
-router.post("/webhook/whatsapp", receiveWhatsappWebhook);
-
-
-router.post("/send-weather-alert",sendCustomMessage)
 
 export default router;

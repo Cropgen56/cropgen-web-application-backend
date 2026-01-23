@@ -16,11 +16,13 @@ import cropRoutes from "./src/routes/cropRoutes.js";
 import postsRoutes from "./src/routes/postRoutes.js";
 import commonRoutes from "./src/routes/commonRoutes.js";
 import analyticRoutes from "./src/routes/analyticsRoutes.js"
+import whatsappRoutes from "./src/routes/whatsappRoutes.js";
 
 // import emailRoutes from "./src/routes/emailRoutes.js";
 import "./src/config/firebaseConfig.js";
 import subscriptionRoutes from "./src/routes/subscriptionPlansRoutes.js";
 import razorpayRoutes from "./src/routes/razorpayRoutes.js";
+
 
 dotenv.config();
 
@@ -96,6 +98,7 @@ app.use("/v1/api/user-subscriptions", razorpayRoutes);
 app.use("/v1/api/posts", postsRoutes);
 app.use("/v1/api/common", commonRoutes);
 app.use("/v1/api/analytics", analyticRoutes);
+app.use("/v1/api/whatsapp", whatsappRoutes);
 
 
 app.get("/health", (req, res) => {
@@ -120,3 +123,6 @@ const startServer = async () => {
 };
 
 startServer();
+
+
+
