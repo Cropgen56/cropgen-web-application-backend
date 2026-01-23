@@ -1,15 +1,4 @@
 import express from "express";
-// import {
-//   getAllUsers,
-//   getUserById,
-//   deleteUserById,
-//   updateUserById,
-//   deleteUserByEmail,
-//   checkUser,
-//   signupWithFirebase,
-//   isUserExist,
-//   loginWithPhone,
-// } from "../controllers/authController.js";
 
 import {
   requestOtp,
@@ -33,6 +22,7 @@ import {
   isUserExist,
   loginWithPhone,
 } from "../controllers/authcontroller/index.js";
+
 
 import { requireAuth } from "../middleware/authMiddleware.js";
 import { updateUserActivity } from "../middleware/updateUserActivity.js";
@@ -95,10 +85,11 @@ router.post("/refresh", refreshTokenHandler);
 router.post("/logout", logoutHandler);
 router.post("/google", loginWithGoogleWeb);
 
-
 // request admin otp
 router.post("/admin-otp", requestAdminOtp);
 
 // cropydeals register login api
 router.post("/cropydeal-register-login", cropydealsRegisterLogin);
+
+
 export default router;
