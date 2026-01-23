@@ -8,6 +8,24 @@ const router = express.Router();
 
 router.post("/send-weather-alert",sendCustomMessage)
 
+router.get("/webhook", (req, res) => {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  // Verify token must match EXACTLY what you entered in Meta
+  if (
+    mode === "subscribe" &&
+    token === process.env.WHATSAPP_VERIFY_TOKEN
+  ) {
+    console.log("✅ Webhook verified successfully");
+    return res.status(200).send(challenge);
+  }
+
+  console.log("❌ Webhook verification failed");
+  return res.sendStatus(403);
+});
+
 router.post("/webhook", async (req, res) => {
   const entry = req.body.entry?.[0];
   const changes = entry?.changes?.[0];
