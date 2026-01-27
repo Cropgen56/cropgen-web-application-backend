@@ -1,3 +1,18 @@
+export const calculateCropAgeInDays = (sowingDate) => {
+  if (!sowingDate) return null;
+
+  const sowing = new Date(sowingDate);
+  const today = new Date();
+
+  const diffTime = today.getTime() - sowing.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+  return diffDays >= 0 ? diffDays : 0;
+};
+
+
+/* ================= ICON MAP ================= */
+
 const TYPE_ICONS = {
   SPRAY: "🧴",
   FERTIGATION: "🌿",
@@ -6,10 +21,37 @@ const TYPE_ICONS = {
   CROP_RISK: "⚠️",
 };
 
-export function formatFarmAdvisoryMessage(advisories) {
-  let message = `🌾 *Today’s Farm Advisory*\n\n`;
+/* ================= FORMAT MESSAGE ================= */
 
-  advisories.forEach((item, index) => {
+export const formatFarmAdvisoryMessage = (
+  activities,
+  farmField // 👈 NEW PARAM
+) => {
+  let message = `🌾 *Farm Advisory – Today*\n\n`;
+
+  /* ================= FARM DETAILS ================= */
+
+  if (farmField) {
+    const cropAge = calculateCropAgeInDays(farmField.sowingDate);
+    const formattedArea = farmField.acre.toFixed(2);
+
+    message += `📍 *Farm Details*\n`;
+    message += `• Field: ${farmField.fieldName}\n`;
+    message += `• Crop: ${farmField.cropName} (${farmField.variety})\n`;
+    message += `• Area: ${formattedArea} Acre\n`;
+    message += `• Farming: ${farmField.typeOfFarming}\n`;
+    message += `• Irrigation: ${farmField.typeOfIrrigation}\n`;
+
+    if (cropAge !== null) {
+      message += `• Crop Age: ${cropAge} days\n`;
+    }
+
+    message += `\n——————————————\n\n`;
+  }
+
+  /* ================= ACTIVITIES ================= */
+
+  activities.forEach((item, index) => {
     const icon = TYPE_ICONS[item.type] || "📌";
 
     message += `*${icon} ${item.title}*\n`;
@@ -34,14 +76,12 @@ export function formatFarmAdvisoryMessage(advisories) {
         message += `• Time: ${item.details.time}\n`;
     }
 
-    if (index !== advisories.length - 1) {
+    if (index !== activities.length - 1) {
       message += `\n——————————————\n\n`;
     }
   });
 
-  message +=
-    `\n✅ *Please follow today’s advisory carefully.*\n` +
-    `📞 *For assistance, call:* +91 96659 35570`;
+  message += `\n✅ Follow advisory carefully.\n📞 Contact us if you need help.`;
 
   return message;
-}
+};

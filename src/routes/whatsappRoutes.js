@@ -4,7 +4,7 @@ import User from "../models/usersModel.js"
 import FarmAdvisory from "../models/farmadvisory.model.js"
 import WhatsAppMessage from "../models/whatsappmessage.model.js"
 
-import { sendCustomMessage ,sendFarmAdvisoryMessage} from "../controllers/whatsappcontroller/index.js";
+import { sendFarmAdvisoryMessage} from "../controllers/whatsappcontroller/index.js";
 import { sendWhatsAppReply } from "../services/whatsappService.js";
 
 const router = express.Router();

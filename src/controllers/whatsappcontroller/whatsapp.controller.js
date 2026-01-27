@@ -2,6 +2,7 @@ import FarmAdviosryModel from "../../models/farmadvisory.model.js";
 import WhatsAppMessage from "../../models/whatsappmessage.model.js"
 import { sendCustomWhatsAppMessage } from "../../services/whatsappService.js"
 import { formatFarmAdvisoryMessage } from "../../utils/whatsapp.utils.js";
+import FarmField from "../../models/fieldModel.js"
 import User from "../../models/usersModel.js"
 
 export const sendCustomMessage = async (req, res) => {
@@ -49,7 +50,6 @@ export const sendFarmAdvisoryMessage = async (req, res) => {
 
     /* ================= 1️⃣ NORMALIZE PHONE ================= */
 
-    // phone coming as 919322396236
     const normalizedPhone = `+${phone}`;
 
     /* ================= 2️⃣ FIND FARMER ================= */
@@ -74,13 +74,25 @@ export const sendFarmAdvisoryMessage = async (req, res) => {
       });
     }
 
-    /* ================= 4️⃣ FORMAT MESSAGE ================= */
+    /* ================= 4️⃣ GET FARM DETAILS (✅ FIXED) ================= */
+
+    const farmDetails = await FarmField.findById(advisory.farmFieldId);
+
+    if (!farmDetails) {
+      return res.status(404).json({
+        success: false,
+        error: "Farm field not found",
+      });
+    }
+
+    /* ================= 5️⃣ FORMAT MESSAGE (WITH FARM DETAILS + CROP AGE) ================= */
 
     const formattedMessage = formatFarmAdvisoryMessage(
-      advisory.activitiesToDo
+      advisory.activitiesToDo,
+      farmDetails // 👈 IMPORTANT
     );
 
-    /* ================= 5️⃣ SEND WHATSAPP ================= */
+    /* ================= 6️⃣ SEND WHATSAPP ================= */
 
     const result = await sendCustomWhatsAppMessage(phone, formattedMessage);
 
@@ -91,12 +103,12 @@ export const sendFarmAdvisoryMessage = async (req, res) => {
       });
     }
 
-    /* ================= 6️⃣ SAVE WHATSAPP MESSAGE ================= */
+    /* ================= 7️⃣ SAVE WHATSAPP MESSAGE ================= */
 
     await WhatsAppMessage.create({
       advisoryId: advisory._id,
       farmFieldId: advisory.farmFieldId,
-      farmerId: farmer._id, // ✅ FIXED
+      farmerId: farmer._id,
       phone,
       direction: "OUT",
       messageType: "text",
