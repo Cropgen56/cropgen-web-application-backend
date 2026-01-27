@@ -5,15 +5,16 @@ export const getProfile = async (req, res) => {
 
   try {
     const user = await User.findById(id)
-      .select(
-        "_id email role firstName lastName phone avatar terms lastLoginAt createdAt organization lastActiveAt"
-      )
-      .populate({
-        path: "organization",
-        select:
-          "_id organizationName organizationCode email phoneNumber address",
-      })
-      .lean();
+  .select(
+    "_id email phone role firstName lastName avatar terms lastLoginAt createdAt organization lastActiveAt"
+  )
+  .populate({
+    path: "organization",
+    select:
+      "_id organizationName organizationCode email phoneNumber address",
+  })
+  .lean();
+
 
     if (!user) {
       return res.status(404).json({

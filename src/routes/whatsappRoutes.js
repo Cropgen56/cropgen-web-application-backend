@@ -1,19 +1,25 @@
 import express from "express";
 
-import { sendCustomMessage } from "../controllers/whatsappcontroller/index.js";
+import User from "../models/usersModel.js"
+import FarmAdvisory from "../models/farmadvisory.model.js"
+import WhatsAppMessage from "../models/whatsappmessage.model.js"
+
+import { sendCustomMessage ,sendFarmAdvisoryMessage} from "../controllers/whatsappcontroller/index.js";
 import { sendWhatsAppReply } from "../services/whatsappService.js";
 
 const router = express.Router();
 
 
-router.post("/send-weather-alert",sendCustomMessage)
+router.post("/send-farm-advisory",sendFarmAdvisoryMessage)
+
+
+/* ================= WEBHOOK VERIFICATION ================= */
 
 router.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  // Verify token must match EXACTLY what you entered in Meta
   if (
     mode === "subscribe" &&
     token === process.env.WHATSAPP_VERIFY_TOKEN
@@ -22,36 +28,96 @@ router.get("/webhook", (req, res) => {
     return res.status(200).send(challenge);
   }
 
-  console.log("❌ Webhook verification failed");
   return res.sendStatus(403);
 });
 
+/* ================= RECEIVE FARMER MESSAGE ================= */
+
 router.post("/webhook", async (req, res) => {
-  const entry = req.body.entry?.[0];
-  const changes = entry?.changes?.[0];
-  const value = changes?.value;
+  try {
+    // 🔥 WhatsApp sends array structure
+    const message =
+      req.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
 
-  if (value?.messages) {
-    const message = value.messages[0];
-    const from = message.from;
+    if (!message) {
+      return res.sendStatus(200);
+    }
+
+
+    /* ================= 1️⃣ EXTRACT DATA ================= */
+
+    const phone = message.from; // 919322396236
     const text = message.text?.body || "";
+    const timestamp = new Date(Number(message.timestamp) * 1000);
 
-    console.log("User:", from);
-    console.log("Message:", text);
+    /* ================= 2️⃣ FIND FARMER ================= */
 
-    // Simple advisory reply
-    const replyMessage =
-      "Thank you for contacting CropGen 🌱\n\n" +
-      "We have received your request for crop advisory. " +
-      "Our system is analyzing your field data and satellite insights. " +
-      "You will receive recommendations shortly.";
+    const farmer = await User.findOne({
+      phone: `+${phone}`,
+    });
 
-    await sendWhatsAppReply(from, replyMessage);
+    if (!farmer) {
+      console.warn("⚠️ Farmer not found for phone:", phone);
+      return res.sendStatus(200);
+    }
+
+    /* ================= 3️⃣ FIND LATEST SENT ADVISORY ================= */
+
+    // Find last OUT message sent to this farmer
+    const lastSentMessage = await WhatsAppMessage.findOne({
+      farmerId: farmer._id,
+      direction: "OUT",
+    }).sort({ createdAt: -1 });
+
+    if (!lastSentMessage) {
+      console.warn("⚠️ No sent advisory found for farmer:", farmer._id);
+      return res.sendStatus(200);
+    }
+
+    const advisoryId = lastSentMessage.advisoryId;
+
+    /* ================= 4️⃣ SAVE INCOMING MESSAGE ================= */
+
+    await WhatsAppMessage.create({
+      advisoryId,
+      farmerId: farmer._id,
+      phone,
+      direction: "IN",
+      messageType: message.type || "text",
+      text,
+      timestamp,
+      rawPayload: message,
+    });
+
+    /* ================= 5️⃣ OPTIONAL: UPDATE ADVISORY STATUS ================= */
+
+    await FarmAdvisory.findByIdAndUpdate(advisoryId, {
+      $set: { updatedAt: new Date() },
+    });
+
+    /* ================= 6️⃣ AUTO REPLY ================= */
+
+    const autoReply =
+      "🙏 We received your message. Our agronomist will get back to you shortly.";
+
+    await sendWhatsAppReply(phone, autoReply);
+
+    /* ================= 7️⃣ SAVE AUTO REPLY ================= */
+
+    await WhatsAppMessage.create({
+      advisoryId,
+      farmerId: farmer._id,
+      phone,
+      direction: "OUT",
+      messageType: "text",
+      text: autoReply,
+    });
+
+    return res.sendStatus(200);
+  } catch (error) {
+    console.error("❌ WhatsApp webhook error:", error);
+    return res.sendStatus(500);
   }
-
-  res.sendStatus(200);
 });
-
-
 
 export default router;

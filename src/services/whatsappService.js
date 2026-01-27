@@ -1,7 +1,6 @@
 import axios from "axios";
 
 
-
 // send custom message to the users
 export async function sendCustomWhatsAppMessage(phone, messageText, options = {}) {
   const {
@@ -85,3 +84,4 @@ export async function sendWhatsAppReply(to, message) {
     }
   );
 }
+
