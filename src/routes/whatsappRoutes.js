@@ -7,11 +7,23 @@ import WhatsAppMessage from "../models/whatsappmessage.model.js"
 import { sendFarmAdvisoryMessage} from "../controllers/whatsappcontroller/index.js";
 import { sendWhatsAppReply } from "../services/whatsappService.js";
 
+import {getAllWhatsAppMessages,
+  getWhatsAppMessageById,
+  deleteWhatsAppMessage,
+  updateWhatsAppMessage,replyToWhatsAppMessage} from "../controllers/whatsappcontroller/index.js"
+
 const router = express.Router();
 
 
 router.post("/send-farm-advisory",sendFarmAdvisoryMessage)
 
+
+// Admin routes
+router.get("/chats/", getAllWhatsAppMessages);
+router.get("/chat/:id", getWhatsAppMessageById);
+router.delete("/chat/:id", deleteWhatsAppMessage);
+router.patch("/chat/:id", updateWhatsAppMessage);
+router.post("/chat/reply", replyToWhatsAppMessage);
 
 /* ================= WEBHOOK VERIFICATION ================= */
 

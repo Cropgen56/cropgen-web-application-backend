@@ -1,2 +1,7 @@
 
-export { sendCustomMessage , sendFarmAdvisoryMessage } from "../whatsappcontroller/whatsapp.controller.js"
+export { sendFarmAdvisoryMessage } from "./whatsapp.controller.js"
+
+export {getAllWhatsAppMessages,
+  getWhatsAppMessageById,
+  deleteWhatsAppMessage,
+  updateWhatsAppMessage,replyToWhatsAppMessage} from "./whatsappMessage.controller.js"

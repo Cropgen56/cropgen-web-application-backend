@@ -4,8 +4,8 @@ const whatsappMessageSchema = new mongoose.Schema(
   {
     advisoryId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Advisory",
-      required: true,
+      ref: "FarmAdvisory",
+      required: false,
     },
 
     farmerId: {
