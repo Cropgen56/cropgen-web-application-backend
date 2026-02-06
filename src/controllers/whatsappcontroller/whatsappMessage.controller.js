@@ -1,6 +1,6 @@
-import WhatsAppMessage from "../../models/whatsappmessage.model.js"
-import User from "../../models/usersModel.js"
-import { sendCustomWhatsAppMessage } from "../../services/whatsappService.js"
+import WhatsAppMessage from "../../models/whatsappmessage.model.js";
+import User from "../../models/usersModel.js";
+import { sendCustomWhatsAppMessage } from "../../services/whatsappService.js";
 
 export const getAllWhatsAppMessages = async (req, res) => {
   try {
@@ -100,16 +100,13 @@ export const deleteWhatsAppMessage = async (req, res) => {
   }
 };
 
-
 export const updateWhatsAppMessage = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const updated = await WhatsAppMessage.findByIdAndUpdate(
-      id,
-      req.body,
-      { new: true }
-    );
+    const updated = await WhatsAppMessage.findByIdAndUpdate(id, req.body, {
+      new: true,
+    });
 
     if (!updated) {
       return res.status(404).json({
@@ -167,7 +164,7 @@ export const replyToWhatsAppMessage = async (req, res) => {
     const savedMessage = await WhatsAppMessage.create({
       farmerId: farmer._id,
       phone,
-      direction: "OUT",              
+      direction: "OUT",
       messageType: "text",
       text: message,
       rawPayload: result.data,
@@ -180,7 +177,6 @@ export const replyToWhatsAppMessage = async (req, res) => {
       data: savedMessage,
       messageId: result.messageId,
     });
-
   } catch (error) {
     console.error("replyToWhatsAppMessage error:", error);
     return res.status(500).json({

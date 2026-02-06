@@ -1,4 +1,4 @@
-import SubscriptionPlan from "../../models/SubscriptionPlanModel.js";
+import SubscriptionPlan from "../../models/subscriptionplan.model.js";
 import { idSchema } from "../../validation/subscriptionValidationSchema.js";
 
 export const getSubscriptionPlanById = async (req, res) => {

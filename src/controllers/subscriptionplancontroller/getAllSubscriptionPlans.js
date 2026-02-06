@@ -1,4 +1,4 @@
-import SubscriptionPlan from "../../models/SubscriptionPlanModel.js";
+import SubscriptionPlan from "../../models/subscriptionplan.model.js";
 
 export const getAllSubscriptionPlans = async (req, res) => {
   try {

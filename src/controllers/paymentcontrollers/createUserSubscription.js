@@ -1,7 +1,7 @@
 import Razorpay from "razorpay";
-import SubscriptionPlan from "../../models/SubscriptionPlanModel.js";
+import SubscriptionPlan from "../../models/subscriptionplan.model.js";
 import { mapStatus } from "./utils/mapStatus.js";
-import UserSubscription from "../../models/userSubscriptionModel.js";
+import UserSubscription from "../../models/subscription.model.js";
 import * as turf from "@turf/turf";
 
 import User from "../../models/usersModel.js";
@@ -102,7 +102,7 @@ export const createUserSubscription = async (req, res) => {
         active: true,
         startDate: new Date(),
         endDate: new Date(
-          Date.now() + (plan.trialDays || 0) * 24 * 60 * 60 * 1000
+          Date.now() + (plan.trialDays || 0) * 24 * 60 * 60 * 1000,
         ),
         notes: {
           isTrial: true,
@@ -125,7 +125,7 @@ export const createUserSubscription = async (req, res) => {
 
     // Pricing lookup (currency + billingCycle)
     const pricing = plan.pricing.find(
-      (p) => p.currency === currency && p.billingCycle === billingCycle
+      (p) => p.currency === currency && p.billingCycle === billingCycle,
     );
     if (!pricing) {
       return res.status(400).json({
@@ -159,7 +159,7 @@ export const createUserSubscription = async (req, res) => {
       appliedMinimum = true;
       finalAmountMinor = minForCurrency;
       console.warn(
-        `Computed amount ${originalAmountMinor} < min ${minForCurrency} for ${currency}. Applying minimum (${finalAmountMinor}).`
+        `Computed amount ${originalAmountMinor} < min ${minForCurrency} for ${currency}. Applying minimum (${finalAmountMinor}).`,
       );
     }
 
@@ -172,7 +172,7 @@ export const createUserSubscription = async (req, res) => {
     });
     if (existingActive) {
       const activePlan = await SubscriptionPlan.findById(
-        existingActive.planId
+        existingActive.planId,
       ).lean();
       return res.status(400).json({
         success: false,
@@ -241,7 +241,7 @@ export const createUserSubscription = async (req, res) => {
         amount: finalAmountMinor,
         currency,
         description: `${plan.name} for ${hectaresFloat.toFixed(
-          4
+          4,
         )} ha (${billingCycle})`,
       },
       notes: {
@@ -286,7 +286,7 @@ export const createUserSubscription = async (req, res) => {
     } catch (err) {
       console.error(
         "Razorpay create subscription error:",
-        JSON.stringify(err, null, 2)
+        JSON.stringify(err, null, 2),
       );
       // mark local sub failed but keep plan for audit
       await UserSubscription.findByIdAndUpdate(localSub._id, {
@@ -349,15 +349,15 @@ export const createUserSubscription = async (req, res) => {
               nextBilling,
               "Card/UPI/Online",
               `CG/${new Date().getFullYear()}/INV-${Math.floor(
-                10000 + Math.random() * 90000
-              )}`
+                10000 + Math.random() * 90000,
+              )}`,
             ),
             text: `Hi ${
               user.name || "Farmer"
             },\n\nYour ${planName} subscription for ${
               localSub.hectares
             } ha is now active.\nAmount: ${(finalAmountMinor / 100).toFixed(
-              2
+              2,
             )} ${localSub.currency}\n\nThanks,\nCropGen Team`,
           });
         }

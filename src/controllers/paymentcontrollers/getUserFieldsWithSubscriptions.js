@@ -1,7 +1,7 @@
 // controllers/subscriptionController.js
 import mongoose from "mongoose";
 import FarmField from "../../models/fieldModel.js";
-import UserSubscription from "../../models/userSubscriptionModel.js";
+import UserSubscription from "../../models/subscription.model.js";
 // import SubscriptionPlan from "../models/SubscriptionPlan.js";
 import User from "../../models/usersModel.js";
 

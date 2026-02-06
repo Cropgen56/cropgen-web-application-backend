@@ -1,4 +1,4 @@
-import SubscriptionPlan from "../../models/SubscriptionPlanModel.js";
+import SubscriptionPlan from "../../models/subscriptionplan.model.js";
 import { subscriptionPlanSchema } from "../../validation/subscriptionValidationSchema.js";
 
 export const createSubscriptionPlan = async (req, res) => {

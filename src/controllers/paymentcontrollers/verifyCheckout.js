@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import Razorpay from "razorpay";
-import UserSubscription from "../../models/userSubscriptionModel.js";
-import Payment from "../../models/PaymentModel.js";
+import UserSubscription from "../../models/subscription.model.js";
+import Payment from "../../models/payment.model.js";
 import { sendBasicEmail } from "../../config/sesClient.js";
 import { htmlSubscriptionSuccess } from "../../utils/emailTemplate.js";
 
@@ -123,7 +123,7 @@ export const verifyCheckout = async (req, res) => {
           raw: { ...rpPayment, verifiedBy: "verifyCheckout" },
         },
       },
-      { upsert: true }
+      { upsert: true },
     );
 
     // 10. Fetch populated payment for email
@@ -146,9 +146,9 @@ export const verifyCheckout = async (req, res) => {
       payment.method === "upi"
         ? `UPI ${payment.upiId || ""}`
         : payment.method === "card"
-        ? `Card ****${payment.cardLast4 || "0000"}`
-        : payment.method?.charAt(0).toUpperCase() + payment.method?.slice(1) ||
-          "Online";
+          ? `Card ****${payment.cardLast4 || "0000"}`
+          : payment.method?.charAt(0).toUpperCase() +
+              payment.method?.slice(1) || "Online";
 
     // 12. Send Custom Email
     try {
@@ -168,7 +168,7 @@ export const verifyCheckout = async (req, res) => {
           payment.billingEndDate,
           payment.subscriptionId.nextBillingAt,
           paymentMethod,
-          payment.invoiceNumber
+          payment.invoiceNumber,
         ),
         text: `
 Hi ${user.name || "Farmer"},

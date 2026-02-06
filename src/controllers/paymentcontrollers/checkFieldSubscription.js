@@ -1,4 +1,4 @@
-import UserSubscription from "../../models/userSubscriptionModel.js";
+import UserSubscription from "../../models/subscription.model.js";
 
 export const checkFieldSubscription = async (req, res) => {
   try {
@@ -30,8 +30,8 @@ export const checkFieldSubscription = async (req, res) => {
       ? Math.max(
           0,
           Math.ceil(
-            (new Date(activeSub.endDate) - new Date()) / (1000 * 60 * 60 * 24)
-          )
+            (new Date(activeSub.endDate) - new Date()) / (1000 * 60 * 60 * 24),
+          ),
         )
       : null;
 

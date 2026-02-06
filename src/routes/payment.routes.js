@@ -7,9 +7,9 @@ import {
   getSubscriptionById,
   cancelSubscription,
   getUserFieldsWithSubscriptions,
-} from "../controllers/razorpay/index.js";
+} from "../controllers/paymentcontrollers/index.js";
 
-import { checkFieldSubscription } from "../controllers/razorpay/checkFieldSubscription.js";
+import { checkFieldSubscription } from "../controllers/paymentcontrollers/checkFieldSubscription.js";
 import { isAuthenticated } from "../middleware/authMiddleware.js";
 const router = express.Router();
 

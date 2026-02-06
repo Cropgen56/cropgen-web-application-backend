@@ -50,9 +50,9 @@ const PaymentSchema = new Schema(
       enum: ["card", "upi", "netbanking", "wallet", "other"],
       default: null,
     },
-    cardLast4: { type: String, default: null }, // e.g., "8684"
-    upiId: { type: String, default: null }, // e.g., "user@ybl"
-    bank: { type: String, default: null }, // for netbanking
+    cardLast4: { type: String, default: null },
+    upiId: { type: String, default: null },
+    bank: { type: String, default: null },
 
     // Invoice metadata
     invoiceNumber: { type: String, index: true, default: null },
@@ -74,7 +74,7 @@ const PaymentSchema = new Schema(
     raw: { type: Schema.Types.Mixed },
     note: { type: String, default: null },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Indexes: providerPaymentId unique (sparse) prevents duplicates when present

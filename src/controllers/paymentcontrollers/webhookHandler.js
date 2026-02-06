@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import Razorpay from "razorpay";
-import UserSubscription from "../../models/userSubscriptionModel.js";
+import UserSubscription from "../../models/subscription.model.js";
 import { mapStatus } from "./utils/mapStatus.js";
 import { savePayment } from "./utils/savePayment.js";
 
@@ -54,7 +54,7 @@ export const razorpayWebhookHandler = async (req, res) => {
         } catch (err) {
           console.warn(
             `[Webhook] Invoice fetch failed (ID: ${invoiceId}):`,
-            err?.message || err
+            err?.message || err,
           );
         }
       }
@@ -124,7 +124,7 @@ export const razorpayWebhookHandler = async (req, res) => {
       } catch (err) {
         console.warn(
           "[Webhook] Failed to fetch payment for invoice.paid:",
-          err?.message || err
+          err?.message || err,
         );
       }
 
@@ -146,14 +146,14 @@ export const razorpayWebhookHandler = async (req, res) => {
         inv.billing_start != null
           ? new Date(Number(inv.billing_start) * 1000)
           : inv.billing_start
-          ? new Date(inv.billing_start)
-          : null;
+            ? new Date(inv.billing_start)
+            : null;
       const billingEndDate =
         inv.billing_end != null
           ? new Date(Number(inv.billing_end) * 1000)
           : inv.billing_end
-          ? new Date(inv.billing_end)
-          : null;
+            ? new Date(inv.billing_end)
+            : null;
 
       // customer details fallback
       const customerEmail =
@@ -227,7 +227,7 @@ export const razorpayWebhookHandler = async (req, res) => {
       } catch (err) {
         console.warn(
           "[Webhook] Failed to fetch payment details:",
-          err?.message || err
+          err?.message || err,
         );
       }
 

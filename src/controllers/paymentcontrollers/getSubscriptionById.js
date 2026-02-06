@@ -1,5 +1,5 @@
-import UserSubscription from "../../models/userSubscriptionModel.js";
-import Payment from "../../models/PaymentModel.js";
+import UserSubscription from "../../models/subscription.model.js";
+import Payment from "../../models/payment.model.js";
 
 export const getSubscriptionById = async (req, res) => {
   try {

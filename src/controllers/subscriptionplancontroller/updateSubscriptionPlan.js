@@ -1,4 +1,4 @@
-import SubscriptionPlan from "../../models/SubscriptionPlanModel.js";
+import SubscriptionPlan from "../../models/subscriptionplan.model.js";
 import {
   subscriptionPlanSchema,
   idSchema,
@@ -43,7 +43,7 @@ export const updateSubscriptionPlan = async (req, res) => {
     const updated = await SubscriptionPlan.findByIdAndUpdate(
       req.params.id,
       { $set: req.body },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     res.json({ success: true, data: updated });

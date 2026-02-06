@@ -64,7 +64,7 @@ const UserSubscriptionSchema = new Schema(
     // free-form metadata (pricing snapshot, clientRequestId, polygon info etc.)
     notes: { type: Schema.Types.Mixed, default: {} },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Optional: One active subscription per field (non-unique)
@@ -78,7 +78,7 @@ UserSubscriptionSchema.index(
     partialFilterExpression: {
       razorpaySubscriptionId: { $exists: true, $ne: null },
     },
-  }
+  },
 );
 
 // Helpful lookups

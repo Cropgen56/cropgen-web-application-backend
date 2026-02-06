@@ -1,7 +1,8 @@
 import mongoose from "mongoose";
 import FarmField from "../models/fieldModel.js";
 import User from "../models/usersModel.js";
-import UserSubscription from "../models/userSubscriptionModel.js";
+import UserSubscription from "../models/subscription.model.js";
+import axios from "axios";
 
 // Add a new farm field for a particular user
 export const addField = async (req, res) => {
@@ -18,7 +19,7 @@ export const addField = async (req, res) => {
       typeOfFarming,
     } = req.body;
 
-    // Validate the input fields all are required
+    /* ---------- Validation ---------- */
     if (
       !userId ||
       !latlng ||
@@ -32,7 +33,8 @@ export const addField = async (req, res) => {
     ) {
       return res.status(400).json({ message: "All fields are required" });
     }
-    // Check if the user exists
+
+    /* ---------- User check ---------- */
     const user = await User.findById(userId);
     if (!user) {
       return res
@@ -40,7 +42,7 @@ export const addField = async (req, res) => {
         .json({ success: false, message: "User not found" });
     }
 
-    // Create the new farm field
+    /* ---------- Create farm ---------- */
     const newFarmField = new FarmField({
       field: latlng,
       user: userId,
@@ -49,24 +51,42 @@ export const addField = async (req, res) => {
       sowingDate,
       typeOfIrrigation,
       fieldName: farmName,
-      acre: acre,
+      acre,
       typeOfFarming,
     });
 
-    // Save the farm field in the database
     const savedFarmField = await newFarmField.save();
 
-    // Respond with success
-    res.status(201).json({
+    /* ---------- 🔔 Trigger advisory (NON-BLOCKING) ---------- */
+    axios
+      .post(
+        `${process.env.ADVISORY_SERVER_URL}/api/advisory/internal/advisory/generate`,
+        {
+          farmFieldId: savedFarmField._id,
+          language: user.language || "en",
+        },
+      )
+      .catch((err) => {
+        console.error(
+          "Advisory trigger failed:",
+          err.response?.data || err.message,
+        );
+      });
+
+    /* ---------- Response ---------- */
+    return res.status(201).json({
       success: true,
-      message: "Farm field created successfully",
+      message:
+        "Farm field created successfully. Advisory will be generated shortly.",
       farmField: savedFarmField,
     });
   } catch (error) {
     console.error("Error adding farm field:", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Server error", error: error.message });
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
   }
 };
 
@@ -274,7 +294,7 @@ export const updateField = async (req, res) => {
     const updatedField = await FarmField.findByIdAndUpdate(
       fieldId,
       { $set: updateData },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     // Respond with the updated field

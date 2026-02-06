@@ -17,7 +17,7 @@ router.post(
   "/",
   isAuthenticated,
   authorizeRoles("admin"),
-  createSubscriptionPlan
+  createSubscriptionPlan,
 );
 router.get("/", isAuthenticated, getAllSubscriptionPlans);
 router.get("/:id", isAuthenticated, getSubscriptionPlanById);
@@ -25,13 +25,14 @@ router.patch(
   "/:id",
   isAuthenticated,
   authorizeRoles("admin"),
-  updateSubscriptionPlan
+  updateSubscriptionPlan,
 );
+
 router.delete(
   "/:id",
   isAuthenticated,
   authorizeRoles("admin"),
-  deleteSubscriptionPlan
+  deleteSubscriptionPlan,
 );
 
 export default router;

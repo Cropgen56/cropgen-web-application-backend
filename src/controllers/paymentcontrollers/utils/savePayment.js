@@ -1,4 +1,4 @@
-import Payment from "../../../models/PaymentModel.js";
+import Payment from "../../../models/payment.model.js";
 
 export const savePayment = async (data) => {
   if (!data.providerPaymentId) return;
@@ -6,6 +6,6 @@ export const savePayment = async (data) => {
   await Payment.updateOne(
     { provider: "razorpay", providerPaymentId: data.providerPaymentId },
     { $setOnInsert: data },
-    { upsert: true }
+    { upsert: true },
   );
 };

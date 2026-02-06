@@ -1,22 +1,23 @@
 import express from "express";
 
-import User from "../models/usersModel.js"
-import FarmAdvisory from "../models/farmadvisory.model.js"
-import WhatsAppMessage from "../models/whatsappmessage.model.js"
+import User from "../models/usersModel.js";
+import FarmAdvisory from "../models/farmadvisory.model.js";
+import WhatsAppMessage from "../models/whatsappmessage.model.js";
 
-import { sendFarmAdvisoryMessage} from "../controllers/whatsappcontroller/index.js";
+import { sendFarmAdvisoryMessage } from "../controllers/whatsappcontroller/index.js";
 import { sendWhatsAppReply } from "../services/whatsappService.js";
 
-import {getAllWhatsAppMessages,
+import {
+  getAllWhatsAppMessages,
   getWhatsAppMessageById,
   deleteWhatsAppMessage,
-  updateWhatsAppMessage,replyToWhatsAppMessage} from "../controllers/whatsappcontroller/index.js"
+  updateWhatsAppMessage,
+  replyToWhatsAppMessage,
+} from "../controllers/whatsappcontroller/index.js";
 
 const router = express.Router();
 
-
-router.post("/send-farm-advisory",sendFarmAdvisoryMessage)
-
+router.post("/send-farm-advisory", sendFarmAdvisoryMessage);
 
 // Admin routes
 router.get("/chats/", getAllWhatsAppMessages);
@@ -32,10 +33,7 @@ router.get("/webhook", (req, res) => {
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  if (
-    mode === "subscribe" &&
-    token === process.env.WHATSAPP_VERIFY_TOKEN
-  ) {
+  if (mode === "subscribe" && token === process.env.WHATSAPP_VERIFY_TOKEN) {
     console.log("✅ Webhook verified successfully");
     return res.status(200).send(challenge);
   }
@@ -48,13 +46,13 @@ router.get("/webhook", (req, res) => {
 router.post("/webhook", async (req, res) => {
   try {
     // 🔥 WhatsApp sends array structure
-    const message =
-      req.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+    const message = req.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
 
+    // Log the full payload for debugging
+    console.log("📩 Full incoming webhook:", JSON.stringify(req.body, null, 2));
     if (!message) {
       return res.sendStatus(200);
     }
-
 
     /* ================= 1️⃣ EXTRACT DATA ================= */
 
