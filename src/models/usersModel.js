@@ -41,6 +41,12 @@ const userSchema = new Schema(
       ref: "Organization",
       default: null,
     },
+    language: {
+      type: String,
+      enum: ["en", "hi", "mr", "fr", "gu", "bn", "ta", "ur", "de", "es"],
+      default: "en",
+      index: true,
+    },
     terms: {
       type: Boolean,
       required: true,
@@ -66,14 +72,14 @@ const userSchema = new Schema(
       default: null,
     },
     clientSource: {
-    type: String,
-    enum: ["web", "android", "ios","webview","unknown"],
-    default: "unknown"
-    }
+      type: String,
+      enum: ["web", "android", "ios", "webview", "unknown"],
+      default: "unknown",
+    },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 const User = mongoose.model("User", userSchema);

@@ -22,15 +22,10 @@ const TYPE_ICONS = {
 
 /* ================= FORMAT MESSAGE ================= */
 
-export const formatFarmAdvisoryMessage = (
-  activities,
-  farmField,
-  farmer
-) => {
-  const farmerName =
-    farmer?.firstName
-      ? `${farmer.firstName}${farmer.lastName ? " " + farmer.lastName : ""}`
-      : "Farmer";
+export const formatFarmAdvisoryMessage = (activities, farmField, farmer) => {
+  const farmerName = farmer?.firstName
+    ? `${farmer.firstName}${farmer.lastName ? " " + farmer.lastName : ""}`
+    : "Farmer";
 
   let message = `🌾 *Farm Advisory – Today*\n\n`;
   message += `${farmerName}, hello 🙏\n\n`;
@@ -75,17 +70,14 @@ export const formatFarmAdvisoryMessage = (
       if (item.details.quantity)
         message += `• Quantity: ${item.details.quantity}\n`;
 
-      if (item.details.method)
-        message += `• Method: ${item.details.method}\n`;
+      if (item.details.method) message += `• Method: ${item.details.method}\n`;
 
-      if (item.details.time)
-        message += `• Time: ${item.details.time}\n`;
+      if (item.details.time) message += `• Time: ${item.details.time}\n`;
 
       if (item.details.weather)
         message += `• Weather Note: ${item.details.weather}\n`;
 
-      if (item.details.risk)
-        message += `• Risk Alert: ${item.details.risk}\n`;
+      if (item.details.risk) message += `• Risk Alert: ${item.details.risk}\n`;
     }
 
     if (index !== activities.length - 1) {
@@ -97,7 +89,6 @@ export const formatFarmAdvisoryMessage = (
 
   return message;
 };
-
 
 export const formatFarmAdvisoryMessageHindi = () => {
   let message = `🌾 *कृषि सलाह – आज*\n\n`;
@@ -170,4 +161,3 @@ export const formatFarmAdvisoryMessageHindi = () => {
 
   return message;
 };
-

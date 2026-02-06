@@ -9,13 +9,17 @@ export { loginWithGoogleMobile } from "./loginWithGoogleMobile.js";
 export { requestAdminOtp } from "./requestAdminOtp.js";
 export { getAvatarPresignedUrl } from "./avatarController.js";
 export { getProfile } from "./getProfileController.js";
-export {checkUser} from "./checkUser.js"
-export {deleteUserByEmail} from "./deleteUserByEmail.js"
-export {deleteUserById} from "./deleteUserById.js"
-export {getAllUsers} from "./getAllUsers.js"
-export {getUserById} from "./getUserById.js"
-export {isUserExist} from "./isUserExist.js"
-export {loginWithPhone} from "./loginWithPhone.js"
-export {signupWithFirebase} from "./signupWithFirebase.js"
-export {updateUserById} from "./updateUserById.js"
+export { checkUser } from "./checkUser.js";
+export { deleteUserByEmail } from "./deleteUserByEmail.js";
+export { deleteUserById } from "./deleteUserById.js";
+export { getAllUsers } from "./getAllUsers.js";
+export { getUserById } from "./getUserById.js";
+export { isUserExist } from "./isUserExist.js";
+export { loginWithPhone } from "./loginWithPhone.js";
+export { signupWithFirebase } from "./signupWithFirebase.js";
+export { updateUserById } from "./updateUserById.js";
 
+// whatsapp otp authentication exports
+export { sendWhatsappOtp } from "./phoneauth.controller.js";
+export { verifyWhatsappOtp } from "./phoneauth.controller.js";
+export { resendWhatsappOtp } from "./phoneauth.controller.js";

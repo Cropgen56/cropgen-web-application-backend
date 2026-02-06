@@ -15,37 +15,37 @@ const router = express.Router();
 
 router.post(
   "/create",
-  isAuthenticated,
-  authorizeRoles("admin", "developer"),
-  createOrganization
+  // isAuthenticated,
+  // authorizeRoles("admin", "developer"),
+  createOrganization,
 );
 
 router.get(
   "/get",
   isAuthenticated,
   authorizeRoles("admin", "developer"),
-  getAllOrganizations
+  getAllOrganizations,
 );
 
 router.get(
   "/get/:id",
   isAuthenticated,
   authorizeRoles("admin", "developer"),
-  getOrganizationById
+  getOrganizationById,
 );
 
 router.patch(
   "/update/:id",
   isAuthenticated,
   authorizeRoles("admin", "developer"),
-  updateOrganization
+  updateOrganization,
 );
 
 router.delete(
   "/delete/:id",
   isAuthenticated,
   authorizeRoles("admin", "developer"),
-  deleteOrganization
+  deleteOrganization,
 );
 
 export default router;
