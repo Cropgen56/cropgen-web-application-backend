@@ -1,16 +1,25 @@
+import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import axios from "axios";
 import User from "../../models/usersModel.js";
 import Organization from "../../models/organizationModel.js";
 import { whatsappLanguageMap } from "../../utils/whatsapputility/whatsapplanguage.map.js";
 
+/* ================= CONSTANTS ================= */
+
 const OTP_EXPIRY_MINUTES = 10;
 const OTP_RESEND_COOLDOWN = 60 * 1000;
+
+const ALLOWED_LANGUAGES = ["en", "hi", "mr"];
+const DEFAULT_LANGUAGE = "en";
+
+/* ================= SEND OTP ================= */
 
 export const sendWhatsappOtp = async (req, res) => {
   try {
     const { phone, language } = req.body;
 
+    /* -------- Phone validation -------- */
     const phoneRegex = /^\+91\d{10}$/;
     if (!phoneRegex.test(phone)) {
       return res.status(400).json({
@@ -19,12 +28,27 @@ export const sendWhatsappOtp = async (req, res) => {
       });
     }
 
+    /* -------- Language normalization -------- */
+    const normalizedLanguage = ALLOWED_LANGUAGES.includes(language)
+      ? language
+      : language
+        ? DEFAULT_LANGUAGE
+        : null;
+
+    /* -------- Find or create user -------- */
     let user = await User.findOne({ phone });
 
     if (!user) {
       const organization = await Organization.findOne({
         organizationCode: "CROPGEN",
       });
+
+      if (!organization) {
+        return res.status(404).json({
+          success: false,
+          message: "Default organization not found",
+        });
+      }
 
       user = await User.create({
         phone,
@@ -33,15 +57,16 @@ export const sendWhatsappOtp = async (req, res) => {
         terms: true,
         organization: organization._id,
         clientSource: "android",
-        language: language || null,
+        language: normalizedLanguage,
       });
     }
 
-    // update language if provided
-    if (language && user.language !== language) {
-      user.language = language;
+    /* -------- Update language if provided -------- */
+    if (normalizedLanguage && user.language !== normalizedLanguage) {
+      user.language = normalizedLanguage;
     }
 
+    /* -------- Rate limiting -------- */
     if (user.lastOtpSentAt) {
       const diff = Date.now() - new Date(user.lastOtpSentAt).getTime();
       if (diff < OTP_RESEND_COOLDOWN) {
@@ -52,6 +77,7 @@ export const sendWhatsappOtp = async (req, res) => {
       }
     }
 
+    /* -------- Generate OTP -------- */
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
 
@@ -61,9 +87,11 @@ export const sendWhatsappOtp = async (req, res) => {
     user.otpAttemptCount = 0;
     await user.save();
 
+    /* -------- WhatsApp language -------- */
     const waLanguage =
       whatsappLanguageMap[user.language] || process.env.WHATSAPP_TEMPLATE_LANG;
 
+    /* -------- Send WhatsApp OTP -------- */
     await axios.post(
       `https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
       {
@@ -98,7 +126,9 @@ export const sendWhatsappOtp = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "OTP sent successfully",
-      data: { isNewUser: !user.lastLoginAt },
+      data: {
+        isNewUser: !user.lastLoginAt,
+      },
     });
   } catch (error) {
     console.error("Send OTP Error:", error?.response?.data || error);
@@ -108,6 +138,8 @@ export const sendWhatsappOtp = async (req, res) => {
     });
   }
 };
+
+/* ================= VERIFY OTP ================= */
 
 export const verifyWhatsappOtp = async (req, res) => {
   try {
@@ -155,7 +187,7 @@ export const verifyWhatsappOtp = async (req, res) => {
       });
     }
 
-    // OTP success → clear OTP fields
+    /* -------- OTP success -------- */
     user.otp = null;
     user.otpExpires = null;
     user.otpAttemptCount = 0;
@@ -163,7 +195,7 @@ export const verifyWhatsappOtp = async (req, res) => {
     user.lastActiveAt = new Date();
     await user.save();
 
-    // JWT
+    /* -------- JWT -------- */
     const payload = {
       id: user._id,
       role: user.role,
@@ -178,7 +210,10 @@ export const verifyWhatsappOtp = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Login successful",
-      data: { accessToken, user },
+      data: {
+        accessToken,
+        user,
+      },
     });
   } catch (error) {
     console.error("Verify OTP Error:", error);
@@ -188,6 +223,8 @@ export const verifyWhatsappOtp = async (req, res) => {
     });
   }
 };
+
+/* ================= RESEND OTP ================= */
 
 export const resendWhatsappOtp = async (req, res) => {
   try {

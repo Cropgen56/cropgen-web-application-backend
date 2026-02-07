@@ -52,8 +52,6 @@ router.post(
   getAvatarPresignedUrl,
 );
 
-router.get("/profile", isAuthenticated, updateUserActivity, getProfile);
-
 router.get(
   "/user/:id",
   isAuthenticated,
@@ -84,11 +82,6 @@ router.post("/login/is-exist", isUserExist);
 router.post("/login/mobile", loginWithPhone);
 router.post("/google-mobile", loginWithGoogleMobile);
 
-// whatsapp otp authentication routes
-router.post("/send-otp", sendWhatsappOtp);
-router.post("/verify-otp", verifyWhatsappOtp);
-router.post("/resend-otp", resendWhatsappOtp);
-
 // web application login and the singup routes
 router.post("/otp", requestOtp);
 router.post("/verify", verifyOtp);
@@ -102,5 +95,13 @@ router.post("/admin-otp", requestAdminOtp);
 
 // cropydeals register login api
 router.post("/cropydeal-register-login", cropydealsRegisterLogin);
+
+// whatsapp otp authentication routes
+router.post("/send-otp", sendWhatsappOtp);
+router.post("/verify-otp", verifyWhatsappOtp);
+router.post("/resend-otp", resendWhatsappOtp);
+
+// profile route
+router.get("/profile", isAuthenticated, updateUserActivity, getProfile);
 
 export default router;

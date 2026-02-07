@@ -8,7 +8,7 @@ export { loginWithGoogleWeb } from "./loginWithGoogleWeb.js";
 export { loginWithGoogleMobile } from "./loginWithGoogleMobile.js";
 export { requestAdminOtp } from "./requestAdminOtp.js";
 export { getAvatarPresignedUrl } from "./avatarController.js";
-export { getProfile } from "./getProfileController.js";
+
 export { checkUser } from "./checkUser.js";
 export { deleteUserByEmail } from "./deleteUserByEmail.js";
 export { deleteUserById } from "./deleteUserById.js";
@@ -23,3 +23,6 @@ export { updateUserById } from "./updateUserById.js";
 export { sendWhatsappOtp } from "./phoneauth.controller.js";
 export { verifyWhatsappOtp } from "./phoneauth.controller.js";
 export { resendWhatsappOtp } from "./phoneauth.controller.js";
+
+// profile controller export
+export { getProfile } from "./profile.controller.js";
