@@ -1,12 +1,42 @@
-import User from "../../models/usersModel.js"
+import User from "../../models/usersModel.js";
 import Organization from "../../models/organizationModel.js";
 
 export const updateUserById = async (req, res) => {
   const { id } = req.params;
-  let updateData = req.body;
+  let updateData = { ...req.body };
 
   try {
-    // Handle organizationCode if provided
+    /* ================= EMAIL UNIQUE CHECK ================= */
+    if (updateData.email) {
+      const existingUser = await User.findOne({
+        email: updateData.email,
+        _id: { $ne: id }, // exclude current user
+      });
+
+      if (existingUser) {
+        return res.status(409).json({
+          success: false,
+          message: "Email is already in use by another account",
+        });
+      }
+    }
+
+    /* ================= PHONE UNIQUE CHECK (OPTIONAL) ================= */
+    if (updateData.phone) {
+      const existingPhone = await User.findOne({
+        phone: updateData.phone,
+        _id: { $ne: id },
+      });
+
+      if (existingPhone) {
+        return res.status(409).json({
+          success: false,
+          message: "Phone number is already in use by another account",
+        });
+      }
+    }
+
+    /* ================= ORGANIZATION HANDLING ================= */
     if (updateData.organizationCode) {
       const organization = await Organization.findOne({
         organizationCode: updateData.organizationCode.toUpperCase(),
@@ -15,19 +45,24 @@ export const updateUserById = async (req, res) => {
       if (!organization) {
         return res.status(404).json({
           success: false,
-          message: `Organization '${updateData.organizationCode}' not found.`,
+          message: `Organization '${updateData.organizationCode}' not found`,
         });
       }
 
       updateData.organization = organization._id;
-
       delete updateData.organizationCode;
     }
 
-    const user = await User.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true,
-    }).populate({
+    /* ================= UPDATE USER ================= */
+    const user = await User.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      {
+        new: true,
+        runValidators: true,
+        context: "query", // IMPORTANT for mongoose validators
+      },
+    ).populate({
       path: "organization",
       select: "organizationCode",
     });
@@ -39,17 +74,27 @@ export const updateUserById = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "User updated successfully",
       user,
     });
   } catch (error) {
     console.error("Error updating user:", error);
-    res.status(500).json({
+
+    /* ================= DUPLICATE KEY SAFETY NET ================= */
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern || {})[0];
+
+      return res.status(409).json({
+        success: false,
+        message: `${field} already exists`,
+      });
+    }
+
+    return res.status(500).json({
       success: false,
       message: "Failed to update user",
-      error: error.message,
     });
   }
 };
