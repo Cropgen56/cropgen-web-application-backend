@@ -2,16 +2,35 @@ import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
-const PricingSchema = new Schema({
-  currency: { type: String, required: true },
-  billingCycle: {
-    type: String,
-    enum: ["monthly", "yearly", "trial"],
-    required: true,
+const PricingSchema = new Schema(
+  {
+    currency: {
+      type: String,
+      enum: ["INR", "USD"],
+      required: true,
+      uppercase: true,
+    },
+
+    billingCycle: {
+      type: String,
+      enum: ["monthly", "yearly", "season"],
+      required: true,
+    },
+
+    pricePerUnitMinor: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+
+    unit: {
+      type: String,
+      enum: ["acre"],
+      default: "acre",
+    },
   },
-  amountMinor: { type: Number, required: true },
-  unit: { type: String, enum: ["hectare", "acre"], default: "hectare" },
-});
+  { _id: false },
+);
 
 const SubscriptionPlanSchema = new Schema(
   {
@@ -19,11 +38,20 @@ const SubscriptionPlanSchema = new Schema(
     slug: { type: String, required: true, unique: true },
     description: { type: String },
 
-    maxUsers: { type: Number, default: 1 },
-    isTrial: { type: Boolean, default: false },
-    trialDays: { type: Number, default: 0 },
+    platform: {
+      type: String,
+      enum: ["mobile", "web"],
+      required: true,
+      index: true,
+    },
 
-    pricing: [PricingSchema],
+    isTrialEnabled: { type: Boolean, default: true },
+    trialDays: { type: Number, default: 15 },
+
+    pricing: {
+      type: [PricingSchema],
+      required: true,
+    },
 
     features: {
       satelliteImagery: { type: Boolean, default: false },
@@ -40,13 +68,16 @@ const SubscriptionPlanSchema = new Schema(
       diseaseDetectionAlerts: { type: Boolean, default: false },
       smartAdvisorySystem: { type: Boolean, default: false },
       soilReportGeneration: { type: Boolean, default: false },
-      other: { type: Boolean, default: false },
     },
 
-    active: { type: Boolean, default: true },
+    active: { type: Boolean, default: true, index: true },
   },
   { timestamps: true },
 );
+
+// Indexes
+SubscriptionPlanSchema.index({ slug: 1 });
+SubscriptionPlanSchema.index({ platform: 1, active: 1 });
 
 // Prevent OverwriteModelError
 const SubscriptionPlan =

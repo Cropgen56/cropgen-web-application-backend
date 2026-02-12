@@ -1,0 +1,97 @@
+import mongoose from "mongoose";
+
+const { Schema } = mongoose;
+
+const UserSubscriptionSchema = new Schema(
+  {
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+
+    fieldId: {
+      type: Schema.Types.ObjectId,
+      ref: "FarmField",
+      required: true,
+      index: true,
+    },
+
+    planId: {
+      type: Schema.Types.ObjectId,
+      ref: "SubscriptionPlan",
+      required: true,
+      index: true,
+    },
+
+    platform: {
+      type: String,
+      enum: ["mobile", "web"],
+      required: true,
+    },
+
+    area: {
+      type: Number,
+      min: 0,
+      required: true,
+    },
+
+    unit: {
+      type: String,
+      enum: ["acre"],
+      default: "acre",
+    },
+
+    billingCycle: {
+      type: String,
+      enum: ["trial", "monthly", "yearly", "season"],
+      required: true,
+    },
+
+    displayCurrency: {
+      type: String,
+      enum: ["INR", "USD"],
+    },
+
+    pricePerUnitMinor: {
+      type: Number,
+      required: true,
+    },
+
+    totalAmountMinor: {
+      type: Number,
+      required: true,
+    },
+
+    chargedCurrency: {
+      type: String,
+      enum: ["INR"],
+      default: "INR",
+    },
+
+    exchangeRate: {
+      type: Number,
+      default: null,
+    },
+
+    status: {
+      type: String,
+      enum: ["pending", "active", "expired", "cancelled"],
+      default: "pending",
+      index: true,
+    },
+
+    startDate: { type: Date, default: Date.now },
+    endDate: { type: Date, default: null },
+
+    razorpayOrderId: { type: String, default: null },
+  },
+  { timestamps: true },
+);
+
+const UserSubscription =
+  mongoose.models.UserSubscription ||
+  mongoose.model("UserSubscription", UserSubscriptionSchema);
+
+export default UserSubscription;

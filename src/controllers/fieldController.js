@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import FarmField from "../models/fieldModel.js";
 import User from "../models/usersModel.js";
-import UserSubscription from "../models/subscription.model.js";
+import UserSubscription from "../models/usersubscription.model.js";
 import axios from "axios";
 
 // Add a new farm field for a particular user
@@ -95,58 +95,70 @@ export const getField = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // Validate userId
+    /* ================= VALIDATION ================= */
+
     if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid User ID" });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid User ID",
+      });
     }
 
-    // Check user existence
     const user = await User.findById(userId).select("_id");
     if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
     }
 
-    // 1) Fetch all fields for this user
+    /* ================= FETCH FIELDS ================= */
+
     const fields = await FarmField.find({ user: userId }).lean();
+
     if (!fields.length) {
       return res.status(200).json({
-        message: "No farm fields found for this user",
+        message: "Farm fields retrieved successfully",
         farmFields: [],
       });
     }
 
     const fieldIds = fields.map((f) => f._id);
 
-    // 2) Fetch all active subscriptions for these fields
+    /* ================= FETCH SUBSCRIPTIONS ================= */
+
     const subscriptions = await UserSubscription.find({
       userId,
       fieldId: { $in: fieldIds },
-      active: true,
-      status: "active",
+      status: { $in: ["active", "pending"] },
     })
       .populate("planId")
       .lean();
 
-    // 3) Map fieldId -> latest active subscription
+    /* ================= MAP LATEST SUB PER FIELD ================= */
+
     const subByFieldId = new Map();
+
     subscriptions.forEach((sub) => {
       const id = String(sub.fieldId);
-      const old = subByFieldId.get(id);
+      const existing = subByFieldId.get(id);
 
-      if (!old) {
+      if (!existing) {
         subByFieldId.set(id, sub);
       } else {
-        const oldStart = old.startDate || old.createdAt || new Date(0);
-        const newStart = sub.startDate || sub.createdAt || new Date(0);
-        if (newStart > oldStart) subByFieldId.set(id, sub);
+        const oldDate = existing.startDate || existing.createdAt || new Date(0);
+        const newDate = sub.startDate || sub.createdAt || new Date(0);
+
+        if (newDate > oldDate) {
+          subByFieldId.set(id, sub);
+        }
       }
     });
 
-    // 4) Attach subscription info to each farm field
+    /* ================= BUILD RESPONSE ================= */
+
+    const now = new Date();
+
     const farmFields = fields.map((field) => {
       const sub = subByFieldId.get(String(field._id));
 
@@ -161,47 +173,73 @@ export const getField = async (req, res) => {
 
       const plan = sub.planId;
 
+      const isExpired =
+        sub.endDate && new Date(sub.endDate) < now && sub.status === "active";
+
+      const daysLeft =
+        sub.endDate && sub.status === "active"
+          ? Math.max(
+              0,
+              Math.ceil((new Date(sub.endDate) - now) / (1000 * 60 * 60 * 24)),
+            )
+          : 0;
+
       return {
         ...field,
         subscription: {
-          hasActiveSubscription: true,
-          subscriptionId: sub._id,
-          status: sub.status,
-          active: sub.active,
-          hectares: sub.hectares,
-          billingCycle: sub.billingCycle,
-          currency: sub.currency,
-          amountMinor: sub.amountMinor,
-          startDate: sub.startDate,
-          nextBillingAt: sub.nextBillingAt,
-          razorpaySubscriptionId: sub.razorpaySubscriptionId,
+          hasActiveSubscription: sub.status === "active" && !isExpired,
 
+          subscriptionId: sub._id,
+          status: isExpired ? "expired" : sub.status,
+
+          platform: sub.platform,
+          billingCycle: sub.billingCycle,
+
+          area: sub.area,
+          unit: sub.unit,
+
+          displayCurrency: sub.displayCurrency,
+          pricePerUnitMinor: sub.pricePerUnitMinor,
+          totalAmountMinor: sub.totalAmountMinor,
+          chargedCurrency: sub.chargedCurrency,
+          exchangeRate: sub.exchangeRate,
+
+          startDate: sub.startDate,
+          endDate: sub.endDate,
+          daysLeft,
+
+          razorpayOrderId: sub.razorpayOrderId,
+
+          // Plan without pricing
           plan: plan
             ? {
                 id: plan._id,
                 name: plan.name,
                 slug: plan.slug,
                 description: plan.description,
-                isTrial: plan.isTrial,
+                platform: plan.platform,
+                isTrialEnabled: plan.isTrialEnabled,
                 trialDays: plan.trialDays,
                 features: plan.features,
-                pricing: plan.pricing,
+                active: plan.active,
               }
             : null,
         },
       };
     });
 
-    // 5) Final response
+    /* ================= RESPONSE ================= */
+
     return res.status(200).json({
       message: "Farm fields retrieved successfully",
       farmFields,
     });
   } catch (error) {
     console.error("Error fetching farm fields:", error);
-    return res
-      .status(500)
-      .json({ message: "Server error", error: error.message });
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
   }
 };
 

@@ -12,7 +12,7 @@ import {
   authorizeRoles,
 } from "../middleware/authMiddleware.js";
 import { uploadCropImages } from "../middleware/uploadImage.js";
-import { generateAdvisory } from "../controllers/advisoryController.js";
+
 const router = express.Router();
 
 router.post(
@@ -20,7 +20,7 @@ router.post(
   isAuthenticated,
   authorizeRoles("admin"),
   uploadCropImages,
-  createCrop
+  createCrop,
 );
 router.get("/get-all", isAuthenticated, getAllCrops);
 router.get("/get-crop-list", getCropNamesAndImages);
@@ -29,15 +29,14 @@ router.delete(
   "/delete/:id",
   isAuthenticated,
   authorizeRoles("admin"),
-  deleteCropById
+  deleteCropById,
 );
 router.patch(
   "/update/:id",
   isAuthenticated,
   authorizeRoles("admin"),
   uploadCropImages,
-  updateCrop
+  updateCrop,
 );
-router.post("/generate-advisory", generateAdvisory);
 
 export default router;

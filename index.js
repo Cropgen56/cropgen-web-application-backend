@@ -20,8 +20,8 @@ import whatsappRoutes from "./src/routes/whatsappRoutes.js";
 
 // import emailRoutes from "./src/routes/emailRoutes.js";
 import "./src/config/firebaseConfig.js";
-import subscriptionRoutes from "./src/routes/subscriptionplan.routes.js";
-import razorpayRoutes from "./src/routes/payment.routes.js";
+import subscriptionPlanRoutes from "./src/routes/subscriptionplan.routes.js";
+import subscriptionRoutes from "./src/routes/subscription.routes.js";
 
 dotenv.config();
 
@@ -93,7 +93,7 @@ app.use("/v1/api/operation", operationRoutes);
 app.use("/v1/api/crop", cropRoutes);
 // app.use("/v1/api/email", emailRoutes);
 app.use("/v1/api/subscription", subscriptionRoutes);
-app.use("/v1/api/user-subscriptions", razorpayRoutes);
+app.use("/v1/api/subscription-plans", subscriptionPlanRoutes);
 app.use("/v1/api/posts", postsRoutes);
 app.use("/v1/api/common", commonRoutes);
 app.use("/v1/api/analytics", analyticRoutes);

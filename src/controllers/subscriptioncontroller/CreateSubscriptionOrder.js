@@ -1,0 +1,173 @@
+import Razorpay from "razorpay";
+import FarmField from "../../models/fieldModel.js";
+import SubscriptionPlan from "../../models/subscriptionplan.model.js";
+import UserSubscription from "../../models/usersubscription.model.js";
+
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
+
+export const createSubscriptionOrder = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    const { farmId, planId, billingCycle, displayCurrency } = req.body;
+
+    /* ================= 1. FARM ================= */
+    const farm = await FarmField.findOne({ _id: farmId, user: userId });
+    if (!farm) {
+      return res.status(404).json({ message: "Farm not found" });
+    }
+
+    /* ================= 2. PLAN ================= */
+    const plan = await SubscriptionPlan.findOne({ _id: planId, active: true });
+    if (!plan) {
+      return res.status(404).json({ message: "Plan not found" });
+    }
+
+    const area = Number(farm.acre) || 1;
+    const startDate = new Date();
+
+    /* =================================================
+       3. TRIAL FLOW (NO PAYMENT)
+    ================================================= */
+    if (billingCycle === "trial") {
+      if (!plan.isTrialEnabled) {
+        return res
+          .status(400)
+          .json({ message: "Trial not available for this plan" });
+      }
+
+      const existingTrial = await UserSubscription.findOne({
+        userId,
+        fieldId: farmId,
+        planId,
+        billingCycle: "trial",
+      });
+
+      if (existingTrial) {
+        return res.status(400).json({ message: "Trial already used" });
+      }
+
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + plan.trialDays);
+
+      const subscription = await UserSubscription.create({
+        userId,
+        fieldId: farmId,
+        planId,
+        platform: plan.platform,
+        area,
+        unit: "acre",
+
+        billingCycle: "trial",
+
+        // 🔒 force clean trial values
+        displayCurrency: null,
+        pricePerUnitMinor: 0,
+        totalAmountMinor: 0,
+        chargedCurrency: null,
+        exchangeRate: null,
+
+        status: "active",
+        startDate,
+        endDate,
+      });
+
+      return res.status(201).json({
+        success: true,
+        type: "trial",
+        subscriptionId: subscription._id,
+        startDate,
+        endDate,
+        daysLeft: plan.trialDays,
+      });
+    }
+
+    /* =================================================
+       4. PAID FLOW (RAZORPAY)
+    ================================================= */
+
+    if (!displayCurrency) {
+      return res.status(400).json({ message: "Currency is required" });
+    }
+
+    const pricing = plan.pricing.find(
+      (p) => p.currency === displayCurrency && p.billingCycle === billingCycle,
+    );
+
+    if (!pricing) {
+      return res.status(400).json({ message: "Pricing not found" });
+    }
+
+    const displayAmountMinor = Math.round(area * pricing.pricePerUnitMinor);
+
+    let chargedAmountMinor = displayAmountMinor;
+    let exchangeRate = null;
+
+    // Razorpay supports INR only
+    if (displayCurrency === "USD") {
+      exchangeRate = 83;
+      chargedAmountMinor = Math.round(
+        (displayAmountMinor / 100) * exchangeRate * 100,
+      );
+    }
+
+    /* ---- end date ---- */
+    const endDate = new Date(startDate);
+    if (billingCycle === "monthly") endDate.setDate(endDate.getDate() + 30);
+    if (billingCycle === "yearly") endDate.setDate(endDate.getDate() + 365);
+    if (billingCycle === "season") endDate.setDate(endDate.getDate() + 120);
+
+    /* ---- pending subscription ---- */
+    const subscription = await UserSubscription.create({
+      userId,
+      fieldId: farmId,
+      planId,
+      platform: plan.platform,
+      area,
+      unit: "acre",
+
+      billingCycle,
+      displayCurrency,
+      pricePerUnitMinor: pricing.pricePerUnitMinor,
+      totalAmountMinor: displayAmountMinor,
+
+      chargedCurrency: "INR",
+      exchangeRate,
+
+      status: "pending",
+      startDate,
+      endDate,
+    });
+
+    /* ---- Razorpay order ---- */
+    const order = await razorpay.orders.create({
+      amount: chargedAmountMinor,
+      currency: "INR",
+      receipt: `sub_${subscription._id.toString().slice(-10)}`,
+    });
+
+    subscription.razorpayOrderId = order.id;
+    await subscription.save();
+
+    return res.status(201).json({
+      success: true,
+      type: "payment",
+      order: {
+        id: order.id,
+        amount: chargedAmountMinor,
+        currency: "INR",
+        key: process.env.RAZORPAY_KEY_ID,
+      },
+      subscriptionId: subscription._id,
+      startDate,
+      endDate,
+    });
+  } catch (error) {
+    console.error("Create subscription order failed:", error);
+    return res
+      .status(500)
+      .json({ message: "Failed to create subscription order" });
+  }
+};

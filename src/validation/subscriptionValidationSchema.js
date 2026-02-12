@@ -1,23 +1,31 @@
 import Joi from "joi";
 
 const pricingSchema = Joi.object({
-  currency: Joi.string().valid("INR", "USD").required(),
-  billingCycle: Joi.string().valid("monthly", "yearly", "trial").required(),
-  amountMinor: Joi.number().integer().min(0).required(),
-  unit: Joi.string().valid("hectare", "user", "flat").default("hectare"),
-  razorpayPlanId: Joi.string().allow(null, ""),
+  currency: Joi.string().valid("INR", "USD"),
+  billingCycle: Joi.string().valid("monthly", "yearly", "season").required(),
+  pricePerUnitMinor: Joi.number().integer().min(0).required(),
+  unit: Joi.string().valid("acre").default("acre"),
 });
 
 export const subscriptionPlanSchema = Joi.object({
   name: Joi.string().min(1).max(100).required(),
   slug: Joi.string().min(1).max(100).required(),
-  description: Joi.string().max(500).allow(""),
-  maxUsers: Joi.number().integer().min(1).default(1),
-  isTrial: Joi.boolean().default(false),
-  trialDays: Joi.number().integer().min(0).default(0),
-  pricing: Joi.array().items(pricingSchema),
+  description: Joi.string().max(500).allow("").optional(),
 
-  // Professional feature naming
+  platform: Joi.string().valid("mobile", "web").required(),
+
+  isTrialEnabled: Joi.boolean().default(true),
+  trialDays: Joi.number()
+    .integer()
+    .min(0)
+    .when("isTrialEnabled", {
+      is: true,
+      then: Joi.number().min(1).required(),
+      otherwise: Joi.number().default(0),
+    }),
+
+  pricing: Joi.array().items(pricingSchema).min(1),
+
   features: Joi.object({
     satelliteImagery: Joi.boolean().default(false),
     cropHealthAndYield: Joi.boolean().default(false),
@@ -33,11 +41,9 @@ export const subscriptionPlanSchema = Joi.object({
     diseaseDetectionAlerts: Joi.boolean().default(false),
     smartAdvisorySystem: Joi.boolean().default(false),
     soilReportGeneration: Joi.boolean().default(false),
-    other: Joi.boolean().default(false),
-  }).default(),
+  }).required(),
 
   active: Joi.boolean().default(true),
 });
 
-// Validate MongoDB ObjectId
 export const idSchema = Joi.string().hex().length(24).required();
